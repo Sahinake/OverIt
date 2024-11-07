@@ -13,6 +13,9 @@ int maze[WIDTH][HEIGHT];
 int playerX, playerY; // Posição do jogador
 int goalDots; // Quantidade de dots que o jogador precisa coletar
 
+float lightDirX = 0.0f;
+float lightDirZ = -1.0f; // Inicialmente apontando para "frente"
+
 typedef struct {
     int x, y;
     bool collected; // Indica se o dot já foi coletado
@@ -79,12 +82,26 @@ void spawnDots() {
     }
 }
 
-// Função para renderizar o labirinto em 3D
+// Função para configurar o material de uma superfície
+void setMaterial(GLfloat ambient[4], GLfloat diffuse[4], GLfloat specular[4], GLfloat shininess) {
+    glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+    glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+}
+
+// Função para renderizar o labirinto em 3D usando materiais
 void renderMaze() {
+    // Define o material das paredes
+    GLfloat wallAmbient[] = { 0.0, 0.0, 0.2, 1.0 };
+    GLfloat wallDiffuse[] = { 0.0, 0.0, 1.0, 1.0 };
+    GLfloat wallSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
+    GLfloat wallShininess = 20.0; // Brilho baixo
+
     for (int x = 0; x < WIDTH; x++) {
         for (int y = 0; y < HEIGHT; y++) {
             if (maze[x][y] == 1) { // Desenhar paredes
-                glColor3f(0.0, 0.0, 1.0); // Azul para paredes
+                setMaterial(wallAmbient, wallDiffuse, wallSpecular, wallShininess);
                 glPushMatrix();
                 glTranslatef(x, 0, y);
                 glutSolidCube(1); // Usa um cubo sólido para a parede
@@ -94,17 +111,29 @@ void renderMaze() {
     }
 }
 
-// Função para renderizar o jogador e os dots
+// Função para renderizar o jogador e os dots usando materiais
 void renderPlayerAndDots() {
-    // Desenha o jogador
-    glColor3f(1.0, 0.0, 0.0); // Vermelho para o jogador
+    // Define o material do jogador
+    GLfloat playerAmbient[] = { 0.2, 0.0, 0.0, 1.0 };
+    GLfloat playerDiffuse[] = { 1.0, 0.0, 0.0, 1.0 };
+    GLfloat playerSpecular[] = { 0.5, 0.5, 0.5, 1.0 };
+    GLfloat playerShininess = 50.0; // Brilho médio
+
+    // Renderiza o jogador
+    setMaterial(playerAmbient, playerDiffuse, playerSpecular, playerShininess);
     glPushMatrix();
     glTranslatef(playerX, 0, playerY);
     glutSolidSphere(0.3, 20, 20); // Usa uma esfera para o jogador
     glPopMatrix();
 
-    // Desenha os dots
-    glColor3f(1.0, 1.0, 0.0); // Amarelo para os dots
+    // Define o material dos dots
+    GLfloat dotAmbient[] = { 0.2, 0.2, 0.0, 1.0 };
+    GLfloat dotDiffuse[] = { 1.0, 1.0, 0.0, 1.0 };
+    GLfloat dotSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
+    GLfloat dotShininess = 10.0; // Brilho baixo para dots
+
+    // Renderiza os dots
+    setMaterial(dotAmbient, dotDiffuse, dotSpecular, dotShininess);
     for (int i = 0; i < DOT_COUNT; i++) {
         if (!dots[i].collected) {
             glPushMatrix();
@@ -132,7 +161,15 @@ void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
 
-    cameraFollowPlayer(); // Atualiza a câmera para seguir o jogador
+    cameraFollowPlayer();
+
+    // Configura a posição da luz como a posição do jogador
+    GLfloat lightPos[] = { (float)playerX, 1.0f, (float)playerY, 1.0f };
+    GLfloat spotDir[] = { lightDirX, -0.5f, lightDirZ }; // Direção da "lanterna"
+
+    glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+    glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, spotDir);
+    glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, 30.0f); // Ângulo da lanterna
 
     renderMaze();
     renderPlayerAndDots();
@@ -145,11 +182,11 @@ void keyboard(unsigned char key, int x, int y) {
     int nextX = playerX, nextY = playerY;
 
     switch (key) {
-        case 's': nextY--; break; // Move para frente (em direção ao eixo negativo do Z)
-        case 'w': nextY++; break; // Move para trás (em direção ao eixo positivo do Z)
-        case 'd': nextX--; break; // Move para a esquerda (X negativo)
-        case 'a': nextX++; break; // Move para a direita (X positivo)
-        case 'r': // Gera um novo labirinto e posiciona os dots
+        case 's': nextY--; lightDirX = 0.0f; lightDirZ = -1.0f; break; // Para baixo
+        case 'w': nextY++; lightDirX = 0.0f; lightDirZ = 1.0f; break;  // Para cima
+        case 'd': nextX--; lightDirX = -1.0f; lightDirZ = 0.0f; break; // Esquerda
+        case 'a': nextX++; lightDirX = 1.0f; lightDirZ = 0.0f; break;  // Direita
+        case 'r':
             initMaze();
             generateMaze(1, 1);
             spawnPlayer();
@@ -167,7 +204,7 @@ void keyboard(unsigned char key, int x, int y) {
     for (int i = 0; i < DOT_COUNT; i++) {
         if (!dots[i].collected && playerX == dots[i].x && playerY == dots[i].y) {
             dots[i].collected = true;
-            goalDots--; // Diminui o número de dots restantes
+            goalDots--;
             if (goalDots == 0) {
                 printf("Parabéns! Você coletou todos os dots!\n");
                 initMaze();
@@ -181,15 +218,25 @@ void keyboard(unsigned char key, int x, int y) {
     glutPostRedisplay();
 }
 
-
 // Configurações de inicialização do OpenGL para 3D
 void initOpenGL() {
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_LIGHTING); // Ativa a iluminação
+    glEnable(GL_LIGHT0);    // Ativa a luz 0
+
     glClearColor(0.0, 0.0, 0.0, 1.0);
 
+    GLfloat ambientLight[] = {0.2f, 0.2f, 0.2f, 1.0f};
+    GLfloat diffuseLight[] = {1.0f, 1.0f, 1.0f, 1.0f};
+    GLfloat specularLight[] = {1.0f, 1.0f, 1.0f, 1.0f};
+    
+    glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
+    glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
+    
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(60.0, 1.0, 1.0, 50.0); // Define uma perspectiva 3D
+    gluPerspective(60.0, 1.0, 1.0, 50.0);
     glMatrixMode(GL_MODELVIEW);
 }
 
