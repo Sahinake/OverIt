@@ -67,17 +67,24 @@ void display() {
     glutSwapBuffers();
 }
 
-// Função para movimentar o jogador
-void movePlayer(int key, int x, int y) {
+// Função para capturar o teclado e mover o jogador ou gerar novo labirinto
+void keyboard(unsigned char key, int x, int y) {
     int nextX = playerX, nextY = playerY;
+
     switch (key) {
-        case GLUT_KEY_UP:    nextY--; break;
-        case GLUT_KEY_DOWN:  nextY++; break;
-        case GLUT_KEY_LEFT:  nextX--; break;
-        case GLUT_KEY_RIGHT: nextX++; break;
+        case 'w': nextY++; break; // Move para cima (inverte o sentido do Y)
+        case 's': nextY--; break; // Move para baixo (inverte o sentido do Y)
+        case 'a': nextX--; break; // Move para a esquerda
+        case 'd': nextX++; break; // Move para a direita
+        case 'r': // Gera um novo labirinto
+            initMaze();
+            generateMaze(1, 1);
+            playerX = 1;
+            playerY = 1;
+            break;
     }
 
-    // Verifica se o movimento é válido
+    // Verifica se o movimento é válido (se o próximo bloco não é uma parede)
     if (nextX >= 0 && nextX < WIDTH && nextY >= 0 && nextY < HEIGHT && maze[nextX][nextY] == 0) {
         playerX = nextX;
         playerY = nextY;
@@ -103,7 +110,7 @@ int main(int argc, char** argv) {
 
     initOpenGL();
     glutDisplayFunc(display);
-    glutSpecialFunc(movePlayer);
+    glutKeyboardFunc(keyboard); // Configura a função de teclado
 
     glutMainLoop();
     return 0;
