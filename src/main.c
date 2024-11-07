@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdbool.h>
+#include <math.h>
 
 #define WIDTH 20 // Largura do labirinto
 #define HEIGHT 20 // Altura do labirinto
@@ -78,38 +79,63 @@ void spawnDots() {
     }
 }
 
-// Função para renderizar o labirinto e os elementos
-void display() {
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    // Desenha o labirinto
+// Função para renderizar o labirinto em 3D
+void renderMaze() {
     for (int x = 0; x < WIDTH; x++) {
         for (int y = 0; y < HEIGHT; y++) {
-            if (maze[x][y] == 1) {
-                glColor3f(0.0, 0.0, 1.0); // Cor azul para as paredes
-            } else {
-                glColor3f(1.0, 1.0, 1.0); // Cor branca para os caminhos
+            if (maze[x][y] == 1) { // Desenhar paredes
+                glColor3f(0.0, 0.0, 1.0); // Azul para paredes
+                glPushMatrix();
+                glTranslatef(x, 0, y);
+                glutSolidCube(1); // Usa um cubo sólido para a parede
+                glPopMatrix();
             }
-            glRecti(x, y, x + 1, y + 1);
         }
     }
+}
 
+// Função para renderizar o jogador e os dots
+void renderPlayerAndDots() {
     // Desenha o jogador
-    glColor3f(1.0, 0.0, 0.0); // Cor vermelha para o jogador
-    glRecti(playerX, playerY, playerX + 1, playerY + 1);
+    glColor3f(1.0, 0.0, 0.0); // Vermelho para o jogador
+    glPushMatrix();
+    glTranslatef(playerX, 0, playerY);
+    glutSolidSphere(0.3, 20, 20); // Usa uma esfera para o jogador
+    glPopMatrix();
 
-    // Desenha os dots restantes
-    glColor3f(1.0, 1.0, 0.0); // Cor amarela para os dots
+    // Desenha os dots
+    glColor3f(1.0, 1.0, 0.0); // Amarelo para os dots
     for (int i = 0; i < DOT_COUNT; i++) {
         if (!dots[i].collected) {
-            glBegin(GL_QUADS); // Usa GL_QUADS para desenhar um quadrado
-            glVertex2f(dots[i].x + 0.3f, dots[i].y + 0.3f);
-            glVertex2f(dots[i].x + 0.7f, dots[i].y + 0.3f);
-            glVertex2f(dots[i].x + 0.7f, dots[i].y + 0.7f);
-            glVertex2f(dots[i].x + 0.3f, dots[i].y + 0.7f);
-            glEnd();
+            glPushMatrix();
+            glTranslatef(dots[i].x, 0, dots[i].y);
+            glutSolidSphere(0.15, 10, 10); // Usa uma esfera pequena para os dots
+            glPopMatrix();
         }
     }
+}
+
+// Função para a câmera seguir o jogador
+void cameraFollowPlayer() {
+    float camX = playerX;      // Posicionar a câmera na mesma linha X do jogador
+    float camY = 8.0f;         // Eleva a câmera para uma visão de cima (Y mais alto)
+    float camZ = playerY - 5.0f; // Posicionar a câmera atrás do jogador no eixo Z
+
+    gluLookAt(camX, camY, camZ, // Posição da câmera
+              playerX, 1.0f, playerY, // Olhando para o jogador
+              0.0f, 1.0f, 0.0f);     // Up vector
+}
+
+
+// Função para renderizar a cena
+void display() {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glLoadIdentity();
+
+    cameraFollowPlayer(); // Atualiza a câmera para seguir o jogador
+
+    renderMaze();
+    renderPlayerAndDots();
 
     glutSwapBuffers();
 }
@@ -119,10 +145,10 @@ void keyboard(unsigned char key, int x, int y) {
     int nextX = playerX, nextY = playerY;
 
     switch (key) {
-        case 'w': nextY++; break; // Move para cima
-        case 's': nextY--; break; // Move para baixo
-        case 'a': nextX--; break; // Move para a esquerda
-        case 'd': nextX++; break; // Move para a direita
+        case 's': nextY--; break; // Move para frente (em direção ao eixo negativo do Z)
+        case 'w': nextY++; break; // Move para trás (em direção ao eixo positivo do Z)
+        case 'd': nextX--; break; // Move para a esquerda (X negativo)
+        case 'a': nextX++; break; // Move para a direita (X positivo)
         case 'r': // Gera um novo labirinto e posiciona os dots
             initMaze();
             generateMaze(1, 1);
@@ -155,9 +181,16 @@ void keyboard(unsigned char key, int x, int y) {
     glutPostRedisplay();
 }
 
+
+// Configurações de inicialização do OpenGL para 3D
 void initOpenGL() {
+    glEnable(GL_DEPTH_TEST);
     glClearColor(0.0, 0.0, 0.0, 1.0);
-    gluOrtho2D(0, WIDTH, 0, HEIGHT);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(60.0, 1.0, 1.0, 50.0); // Define uma perspectiva 3D
+    glMatrixMode(GL_MODELVIEW);
 }
 
 int main(int argc, char** argv) {
@@ -168,9 +201,9 @@ int main(int argc, char** argv) {
     spawnDots();
 
     glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-    glutInitWindowSize(400, 400);
-    glutCreateWindow("Labirinto Procedural com Coleta de Dots");
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+    glutInitWindowSize(800, 800);
+    glutCreateWindow("Labirinto Procedural 3D com Coleta de Dots");
 
     initOpenGL();
     glutDisplayFunc(display);
