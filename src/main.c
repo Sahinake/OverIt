@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <math.h>
 
+#include "Maze.h"
+
 #define WIDTH 20 // Largura do labirinto
 #define HEIGHT 20 // Altura do labirinto
 #define DOT_COUNT 30 // Quantidade de dots a serem coletados
@@ -19,160 +21,7 @@ float lightDirZ = -1.0f; // Inicialmente apontando para "frente"
 float spotCutoff = 30.0f; // Ângulo da lanterna ajustável
 float maxDistance = 5.0f; // Distância máxima para a lanterna
 
-typedef struct {
-    int x, y;
-    bool collected; // Indica se o dot já foi coletado
-} Dot;
-
 Dot dots[DOT_COUNT];
-
-// Função para inicializar o labirinto com paredes
-void initMaze() {
-    for (int i = 0; i < WIDTH; i++) {
-        for (int j = 0; j < HEIGHT; j++) {
-            maze[i][j] = 1; // Coloca uma parede em cada célula
-        }
-    }
-}
-
-// Algoritmo para geração procedural do labirinto
-void generateMaze(int x, int y) {
-    int directions[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-    
-    maze[x][y] = 0; // Marca o caminho atual como vazio
-
-    // Embaralha as direções
-    for (int i = 0; i < 4; i++) {
-        int r = rand() % 4;
-        int temp[2] = {directions[i][0], directions[i][1]};
-        directions[i][0] = directions[r][0];
-        directions[i][1] = directions[r][1];
-        directions[r][0] = temp[0];
-        directions[r][1] = temp[1];
-    }
-
-    // Avança em cada direção
-    for (int i = 0; i < 4; i++) {
-        int newX = x + directions[i][0] * 2;
-        int newY = y + directions[i][1] * 2;
-        
-        if (newX > 0 && newX < WIDTH && newY > 0 && newY < HEIGHT && maze[newX][newY] == 1) {
-            maze[x + directions[i][0]][y + directions[i][1]] = 0; // Remove a parede
-            generateMaze(newX, newY);
-        }
-    }
-}
-
-// Função para posicionar o jogador no ponto inicial
-void spawnPlayer() {
-    playerX = 1;
-    playerY = 1;
-    maze[playerX][playerY] = 0; // Certifica que o ponto inicial está vazio
-}
-
-// Função para gerar dots aleatoriamente em posições válidas no labirinto
-void spawnDots() {
-    goalDots = DOT_COUNT; // Total de dots que o jogador precisa coletar
-    for (int i = 0; i < DOT_COUNT; i++) {
-        int x, y;
-        do {
-            x = rand() % (WIDTH - 2) + 1; // Evita as bordas
-            y = rand() % (HEIGHT - 2) + 1;
-        } while (maze[x][y] != 0); // Garante que o dot não está em uma parede
-        dots[i].x = x;
-        dots[i].y = y;
-        dots[i].collected = false;
-    }
-}
-
-// Função para configurar o material de uma superfície
-void setMaterial(GLfloat ambient[4], GLfloat diffuse[4], GLfloat specular[4], GLfloat shininess) {
-    glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
-    glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
-    glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
-    glMaterialf(GL_FRONT, GL_SHININESS, shininess);
-}
-
-// Função para renderizar o labirinto em 3D usando materiais
-void renderMaze() {
-    // Define o material das paredes
-    GLfloat wallAmbient[] = { 0.0, 0.0, 0.2, 1.0 };
-    GLfloat wallDiffuse[] = { 0.0, 0.0, 1.0, 1.0 };
-    GLfloat wallSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
-    GLfloat wallShininess = 20.0; // Brilho baixo
-
-    for (int x = 0; x < WIDTH; x++) {
-        for (int y = 0; y < HEIGHT; y++) {
-            if (maze[x][y] == 1) { // Desenhar paredes
-                setMaterial(wallAmbient, wallDiffuse, wallSpecular, wallShininess);
-                glPushMatrix();
-                glTranslatef(x, 0, y);
-                glutSolidCube(1); // Usa um cubo sólido para a parede
-                glPopMatrix();
-            }
-        }
-    }
-}
-
-bool isDotVisible(int dotX, int dotY) {
-    // Calcula a distância entre o jogador e o dot
-    float dx = dotX - playerX;
-    float dy = dotY - playerY;
-    float distance = sqrt(dx * dx + dy * dy);
-
-    // Verifica se o dot está dentro do alcance da lanterna
-    if (distance > maxDistance) {
-        return false;
-    }
-
-    // Calcula o ângulo entre a direção da lanterna e o dot
-    float angle = atan2(dy, dx) * 180 / M_PI;  // Converte para graus
-    float lightAngle = atan2(lightDirZ, lightDirX) * 180 / M_PI;
-
-    // Calcula a diferença angular
-    float angleDiff = fabs(angle - lightAngle);
-
-    // Ajusta a diferença angular para que esteja entre 0 e 180 graus
-    if (angleDiff > 180.0f) {
-        angleDiff = 360.0f - angleDiff;
-    }
-
-    // Verifica se o dot está dentro do ângulo de abertura da lanterna
-    return angleDiff <= spotCutoff;
-}
-
-// Função para renderizar o jogador e os dots usando materiais
-void renderPlayerAndDots() {
-    // Define o material do jogador
-    GLfloat playerAmbient[] = { 0.2, 0.0, 0.0, 1.0 };
-    GLfloat playerDiffuse[] = { 1.0, 0.0, 0.0, 1.0 };
-    GLfloat playerSpecular[] = { 0.5, 0.5, 0.5, 1.0 };
-    GLfloat playerShininess = 50.0; // Brilho médio
-
-    // Renderiza o jogador
-    setMaterial(playerAmbient, playerDiffuse, playerSpecular, playerShininess);
-    glPushMatrix();
-    glTranslatef(playerX, 0, playerY);
-    glutSolidSphere(0.3, 20, 20); // Usa uma esfera para o jogador
-    glPopMatrix();
-
-    // Define o material dos dots
-    GLfloat dotAmbient[] = { 0.2, 0.2, 0.0, 1.0 };
-    GLfloat dotDiffuse[] = { 1.0, 1.0, 0.0, 1.0 };
-    GLfloat dotSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
-    GLfloat dotShininess = 10.0; // Brilho baixo para dots
-
-    // Renderiza os dots
-    setMaterial(dotAmbient, dotDiffuse, dotSpecular, dotShininess);
-    for (int i = 0; i < DOT_COUNT; i++) {
-        if (!dots[i].collected && isDotVisible(dots[i].x, dots[i].y)) {
-            glPushMatrix();
-            glTranslatef(dots[i].x, 0, dots[i].y);
-            glutSolidSphere(0.15, 10, 10); // Usa uma esfera pequena para os dots
-            glPopMatrix();
-        }
-    }
-}
 
 // Função para a câmera seguir o jogador
 void cameraFollowPlayer() {
