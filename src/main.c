@@ -15,6 +15,7 @@ int goalDots; // Quantidade de dots que o jogador precisa coletar
 
 float lightDirX = 0.0f;
 float lightDirZ = -1.0f; // Inicialmente apontando para "frente"
+float spotCutoff = 30.0f; // Ângulo da lanterna ajustável
 
 typedef struct {
     int x, y;
@@ -155,6 +156,39 @@ void cameraFollowPlayer() {
               0.0f, 1.0f, 0.0f);     // Up vector
 }
 
+// Função para configurar a iluminação de forma mais flexível
+void setLighting(float lightPos[4], float lightDir[3], float ambient[4], float diffuse[4], float specular[4], float shininess) {
+    glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+    glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, lightDir);
+    glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, spotCutoff); // Usando o valor ajustável de spotCutoff
+    glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
+    glLightfv(GL_LIGHT0, GL_SPECULAR, specular);
+    glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+}
+
+// Função para a iluminação dinâmica durante o jogo
+void updateLighting() {
+    // A posição da luz será sempre a posição do jogador, para simular uma lanterna
+    GLfloat lightPos[] = { (float)playerX, 1.0f, (float)playerY, 1.0f };
+
+    // A direção da luz será ajustada com base no movimento do jogador
+    GLfloat lightDir[] = { lightDirX, -0.5f, lightDirZ }; // Um pequeno ajuste na direção da luz para simular uma lanterna
+
+    // Definindo características da luz ambiente, difusa e especular
+    GLfloat ambientLight[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+    GLfloat diffuseLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    GLfloat specularLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+    // Ajuste do brilho do material
+    GLfloat shininess = 50.0f; // Brilho médio
+
+    // Ângulo de corte da luz (spot)
+    float spotCutoff = 30.0f; // Ângulo da lanterna
+
+    // Chamando a função que configura a iluminação
+    setLighting(lightPos, lightDir, ambientLight, diffuseLight, specularLight, shininess);
+}
 
 // Função para renderizar a cena
 void display() {
@@ -163,13 +197,8 @@ void display() {
 
     cameraFollowPlayer();
 
-    // Configura a posição da luz como a posição do jogador
-    GLfloat lightPos[] = { (float)playerX, 1.0f, (float)playerY, 1.0f };
-    GLfloat spotDir[] = { lightDirX, -0.5f, lightDirZ }; // Direção da "lanterna"
-
-    glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
-    glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, spotDir);
-    glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, 30.0f); // Ângulo da lanterna
+    // Atualiza a iluminação de acordo com o jogador
+    updateLighting();
 
     renderMaze();
     renderPlayerAndDots();
@@ -182,10 +211,16 @@ void keyboard(unsigned char key, int x, int y) {
     int nextX = playerX, nextY = playerY;
 
     switch (key) {
-        case 's': nextY--; lightDirX = 0.0f; lightDirZ = -1.0f; break; // Para baixo
-        case 'w': nextY++; lightDirX = 0.0f; lightDirZ = 1.0f; break;  // Para cima
-        case 'd': nextX--; lightDirX = -1.0f; lightDirZ = 0.0f; break; // Esquerda
-        case 'a': nextX++; lightDirX = 1.0f; lightDirZ = 0.0f; break;  // Direita
+        case 's': nextY--; lightDirX = 0.0f; lightDirZ = -1.0f; break;
+        case 'w': nextY++; lightDirX = 0.0f; lightDirZ = 1.0f; break;
+        case 'd': nextX--; lightDirX = -1.0f; lightDirZ = 0.0f; break;
+        case 'a': nextX++; lightDirX = 1.0f; lightDirZ = 0.0f; break;
+        case '+':
+            if (spotCutoff < 90.0f) spotCutoff += 5.0f; // Aumenta o raio da luz
+            break;
+        case '-':
+            if (spotCutoff > 10.0f) spotCutoff -= 5.0f; // Diminui o raio da luz
+            break;
         case 'r':
             initMaze();
             generateMaze(1, 1);
@@ -194,13 +229,11 @@ void keyboard(unsigned char key, int x, int y) {
             break;
     }
 
-    // Verifica se o movimento é válido
     if (nextX >= 0 && nextX < WIDTH && nextY >= 0 && nextY < HEIGHT && maze[nextX][nextY] == 0) {
         playerX = nextX;
         playerY = nextY;
     }
 
-    // Checa se o jogador coletou um dot
     for (int i = 0; i < DOT_COUNT; i++) {
         if (!dots[i].collected && playerX == dots[i].x && playerY == dots[i].y) {
             dots[i].collected = true;
@@ -218,21 +251,16 @@ void keyboard(unsigned char key, int x, int y) {
     glutPostRedisplay();
 }
 
+
 // Configurações de inicialização do OpenGL para 3D
 void initOpenGL() {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_LIGHTING); // Ativa a iluminação
     glEnable(GL_LIGHT0);    // Ativa a luz 0
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 
     glClearColor(0.0, 0.0, 0.0, 1.0);
-
-    GLfloat ambientLight[] = {0.2f, 0.2f, 0.2f, 1.0f};
-    GLfloat diffuseLight[] = {1.0f, 1.0f, 1.0f, 1.0f};
-    GLfloat specularLight[] = {1.0f, 1.0f, 1.0f, 1.0f};
-    
-    glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
-    glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
     
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
