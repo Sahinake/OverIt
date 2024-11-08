@@ -6,18 +6,6 @@
 
 #define M_PI 3.14159265358979323846
 
-extern int maze[WIDTH][HEIGHT];
-extern int playerX, playerY; // Posição do jogador
-extern int goalDots; // Quantidade de dots que o jogador precisa coletar
-extern int total_batteries;
-extern float lightDirX;
-extern float lightDirZ; // Inicialmente apontando para "frente"
-extern float spotCutoff; // Ângulo da lanterna ajustável
-extern float maxDistance; // Distância máxima para a lanterna
-
-extern Dot dots[DOT_COUNT];
-extern Battery batteries[BATTERY_COUNT]; // Vetor de baterias
-
 // Função para inicializar o labirinto com paredes
 void initMaze() {
     for (int i = 0; i < WIDTH; i++) {
@@ -144,7 +132,7 @@ bool isObjectVisible(int objX, int objY) {
     }
 
     // Verifica se o dot está dentro do ângulo de abertura da lanterna
-    return angleDiff <= spotCutoff;
+    return angleDiff <= batteryCharge;
 }
 
 // Função para renderizar o jogador e os dots usando materiais
@@ -217,7 +205,16 @@ bool checkObjectCollision(int playerX, int playerY) {
         if (!batteries[i].collected && playerX == batteries[i].x && playerY == batteries[i].y) {
             batteries[i].collected = true;
             total_batteries--;
+            batteryCharge += 30.0f;
         }
     }
     
+}
+
+// Função para diminuir a bateria ao longo do tempo
+void updateBattery() {
+    if (batteryCharge > 0.0f) {
+        batteryCharge -= BATTERY_DECREASE_RATE; // Diminui a bateria por frame
+        if (batteryCharge < 0.0f) batteryCharge = 0.0f; // Evita que a bateria fique negativa
+    }
 }
