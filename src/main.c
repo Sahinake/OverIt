@@ -268,22 +268,47 @@ void initOpenGL() {
     glMatrixMode(GL_MODELVIEW);
 }
 
+// Função para lidar com o redimensionamento da janela
+void reshape(int w, int h) {
+    // Define a proporção da janela
+    glViewport(0, 0, w, h);
+
+    // Define a matriz de projeção
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    // Mantém a proporção da cena
+    GLfloat aspectRatio = (GLfloat)w / (GLfloat)h;
+    
+    // Ajusta a perspectiva de acordo com a proporção
+    gluPerspective(45.0f, aspectRatio, 0.1f, 100.0f);
+
+    glMatrixMode(GL_MODELVIEW);
+}
+
 int main(int argc, char** argv) {
     srand(time(NULL));
+
+    // Inicialização do GLUT
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+    glutInitWindowSize(800, 600); // Tamanho inicial da janela
+    glutCreateWindow("Maze Game");
+
+    // Funções de inicialização do OpenGL
+    initOpenGL();
     initMaze();
     generateMaze(1, 1);
     spawnPlayer();
     spawnDots();
 
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-    glutInitWindowSize(800, 800);
-    glutCreateWindow("Labirinto Procedural 3D com Coleta de Dots");
-
-    initOpenGL();
+    // Registra as funções de callback
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
+    glutReshapeFunc(reshape); // Registra a função de reshape
 
+    // Loop principal do GLUT
     glutMainLoop();
+
     return 0;
 }
