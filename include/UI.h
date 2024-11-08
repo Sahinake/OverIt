@@ -5,16 +5,11 @@
 void initUI();
 
 void initFont(const char* fontPath);
-
+float getTextWidth(const char* text);
 void renderText(const char* text, float x, float y);
-
-// Função para renderizar o texto da quantidade de dots restantes
 void renderDotCount();
-
-// Função para configurar a projeção 2D da UI
+void renderGameTime();
 void setup2DProjection();
-
-// Função para configurar a projeção 3D do jogo
 void setup3DProjection();
 
-#endif // UI_H
+#endif

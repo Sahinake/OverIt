@@ -7,6 +7,7 @@
 
 #include "Maze.h"
 #include "UI.h"
+#include "Time.h"
 
 #define WIDTH 20 // Largura do labirinto
 #define HEIGHT 20 // Altura do labirinto
@@ -21,6 +22,13 @@ float lightDirX = 0.0f;
 float lightDirZ = -1.0f; // Inicialmente apontando para "frente"
 float spotCutoff = 30.0f; // Ângulo da lanterna ajustável
 float maxDistance = 5.0f; // Distância máxima para a lanterna
+int window_width = 800, window_height = 600;
+
+// Variáveis globais para o tempo
+time_t startTime;
+time_t currentTime;
+int elapsedTime;
+int font_height = 40;
 
 Dot dots[DOT_COUNT];
 
@@ -82,12 +90,6 @@ void updateLighting() {
 void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
-    
-    // Configura a projeção 2D para renderizar a UI
-    setup2DProjection();
-    glPushMatrix(); // Salva o estado atual da transformação
-    renderDotCount(); // Renderiza o contador de dots
-    glPopMatrix(); // Restaura o estado de transformação
 
     // Configura a projeção 3D para renderizar o jogo
     setup3DProjection();  // Configura a projeção 3D para o jogo
@@ -97,6 +99,13 @@ void display() {
     renderMaze();         // Renderiza o labirinto
     renderPlayerAndDots(); // Renderiza o jogador e os dots
     glPopMatrix();        // Restaura o estado da transformação
+
+    // Configura a projeção 2D para renderizar a UI
+    setup2DProjection();
+    glPushMatrix(); // Salva o estado atual da transformação
+    renderDotCount(); // Renderiza o contador de dots
+    renderGameTime();  // Renderiza o tempo de jogo
+    glPopMatrix(); // Restaura o estado de transformação
 
     glutSwapBuffers();
 }
@@ -170,6 +179,9 @@ void initOpenGL() {
 // Função para lidar com o redimensionamento da janela
 void reshape(int w, int h) {
     // Define a proporção da janela
+    window_width = w;
+    window_height = h;
+
     glViewport(0, 0, w, h);
 
     // Define a matriz de projeção
@@ -200,6 +212,9 @@ int main(int argc, char** argv) {
     generateMaze(1, 1);
     spawnPlayer();
     spawnDots();
+
+    startGameTimer();  // Inicia o tempo no começo do jogo
+    glutTimerFunc(1000, updateGameTime, 0);  // Inicia o timer para atualizar o tempo a cada segundo
 
     // Registra as funções de callback
     glutDisplayFunc(display);

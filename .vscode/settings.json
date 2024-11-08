@@ -8,6 +8,7 @@
         "maze.h": "c",
         "stdbool.h": "c",
         "freeglut.h": "c",
-        "time.h": "c"
+        "time.h": "c",
+        "ui.h": "c"
     }
 }
