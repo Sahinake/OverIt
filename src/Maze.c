@@ -1,6 +1,7 @@
 #include "Maze.h"
 #include <GL/glut.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <math.h>
 
 #define M_PI 3.14159265358979323846
@@ -8,8 +9,14 @@
 extern int maze[WIDTH][HEIGHT];
 extern int playerX, playerY; // Posição do jogador
 extern int goalDots; // Quantidade de dots que o jogador precisa coletar
+extern int total_batteries;
+extern float lightDirX;
+extern float lightDirZ; // Inicialmente apontando para "frente"
+extern float spotCutoff; // Ângulo da lanterna ajustável
+extern float maxDistance; // Distância máxima para a lanterna
 
 extern Dot dots[DOT_COUNT];
+extern Battery batteries[BATTERY_COUNT]; // Vetor de baterias
 
 // Função para inicializar o labirinto com paredes
 void initMaze() {
@@ -70,6 +77,20 @@ void spawnDots() {
     }
 }
 
+// Inicializa as baterias com valores padrão
+void spawnBatteries() {
+    for (int i = 0; i < BATTERY_COUNT; i++) {
+        int x, y;
+        do {
+            x = rand() % (WIDTH - 2) + 1; // Evita as bordas
+            y = rand() % (HEIGHT - 2) + 1;
+        } while (maze[x][y] != 0); // Garante que o dot não está em uma parede
+        batteries[i].x = x;
+        batteries[i].y = y;
+        batteries[i].collected = false;
+    }
+}
+
 // Função para configurar o material de uma superfície
 void setMaterial(GLfloat ambient[4], GLfloat diffuse[4], GLfloat specular[4], GLfloat shininess) {
     glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
@@ -99,10 +120,10 @@ void renderMaze() {
     }
 }
 
-bool isDotVisible(int dotX, int dotY) {
+bool isObjectVisible(int objX, int objY) {
     // Calcula a distância entre o jogador e o dot
-    float dx = dotX - playerX;
-    float dy = dotY - playerY;
+    float dx = objX - playerX;
+    float dy = objY - playerY;
     float distance = sqrt(dx * dx + dy * dy);
 
     // Verifica se o dot está dentro do alcance da lanterna
@@ -127,7 +148,7 @@ bool isDotVisible(int dotX, int dotY) {
 }
 
 // Função para renderizar o jogador e os dots usando materiais
-void renderPlayerAndDots() {
+void renderPlayerAndObjects() {
     // Define o material do jogador
     GLfloat playerAmbient[] = { 0.2, 0.0, 0.0, 1.0 };
     GLfloat playerDiffuse[] = { 1.0, 0.0, 0.0, 1.0 };
@@ -142,7 +163,7 @@ void renderPlayerAndDots() {
     glPopMatrix();
 
     // Define o material dos dots
-    GLfloat dotAmbient[] = { 0.2, 0.2, 0.0, 1.0 };
+    GLfloat dotAmbient[] = { 0.0, 0.0, 0.0, 1.0 };
     GLfloat dotDiffuse[] = { 1.0, 1.0, 0.0, 1.0 };
     GLfloat dotSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
     GLfloat dotShininess = 10.0; // Brilho baixo para dots
@@ -150,11 +171,53 @@ void renderPlayerAndDots() {
     // Renderiza os dots
     setMaterial(dotAmbient, dotDiffuse, dotSpecular, dotShininess);
     for (int i = 0; i < DOT_COUNT; i++) {
-        if (!dots[i].collected && isDotVisible(dots[i].x, dots[i].y)) {
+        if (!dots[i].collected && isObjectVisible(dots[i].x, dots[i].y)) {
             glPushMatrix();
             glTranslatef(dots[i].x, 0, dots[i].y);
             glutSolidSphere(0.15, 10, 10); // Usa uma esfera pequena para os dots
             glPopMatrix();
         }
     }
+
+    // Define o material das baterias
+    GLfloat batteryAmbient[] = { 0.0, 0.0, 0.0, 1.0 };
+    GLfloat batteryDiffuse[] = { 0.0, 1.0, 0.0, 1.0 };
+    GLfloat batterySpecular[] = { 0.3, 0.3, 0.3, 1.0 };
+    GLfloat batteryShininess = 10.0; // Brilho baixo para dots
+
+    // Renderiza as baterias
+    setMaterial(batteryAmbient, batteryDiffuse, batterySpecular, batteryShininess);
+    for (int i = 0; i < BATTERY_COUNT; i++) {
+        if (!batteries[i].collected && isObjectVisible(batteries[i].x, batteries[i].y)) {
+            glPushMatrix();
+            glTranslatef(batteries[i].x, 0, batteries[i].y);
+            glutSolidSphere(0.15, 10, 10); // Usa uma esfera pequena para os dots
+            glPopMatrix();
+        }
+    }
+}
+
+// Função para verificar colisão com dots ou baterias
+bool checkObjectCollision(int playerX, int playerY) {
+    for (int i = 0; i < DOT_COUNT; i++) {
+        if (!dots[i].collected && playerX == dots[i].x && playerY == dots[i].y) {
+            dots[i].collected = true;
+            goalDots--;
+            if (goalDots == 0) {
+                printf("Parabéns! Você coletou todos os dots!\n");
+                initMaze();
+                generateMaze(1, 1);
+                spawnPlayer();
+                spawnDots();
+            }
+        }
+    }
+
+    for (int i = 0; i < BATTERY_COUNT; i++) {
+        if (!batteries[i].collected && playerX == batteries[i].x && playerY == batteries[i].y) {
+            batteries[i].collected = true;
+            total_batteries--;
+        }
+    }
+    
 }

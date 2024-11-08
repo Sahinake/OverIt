@@ -12,11 +12,13 @@
 #define WIDTH 20 // Largura do labirinto
 #define HEIGHT 20 // Altura do labirinto
 #define DOT_COUNT 30 // Quantidade de dots a serem coletados
+#define BATTERY_COUNT 5 // Quantidade de baterias a serem spawnadas
 #define M_PI 3.14159265358979323846
 
 int maze[WIDTH][HEIGHT];
 int playerX, playerY; // Posição do jogador
 int goalDots; // Quantidade de dots que o jogador precisa coletar
+int total_batteries = 5;
 
 float lightDirX = 0.0f;
 float lightDirZ = -1.0f; // Inicialmente apontando para "frente"
@@ -31,6 +33,7 @@ int elapsedTime;
 int font_height = 40;
 
 Dot dots[DOT_COUNT];
+Battery batteries[BATTERY_COUNT];
 
 // Função para a câmera seguir o jogador
 void cameraFollowPlayer() {
@@ -57,24 +60,22 @@ void setLighting(float lightPos[4], float lightDir[3], float ambient[4], float d
 // Função para a iluminação dinâmica durante o jogo
 void updateLighting() {
     // A posição da luz será sempre a posição do jogador, para simular uma lanterna
-    GLfloat lightPos[] = { (float)playerX, 1.0f, (float)playerY, 1.0f };
+    GLfloat lightPos[] = { (float)playerX, 0.8f, (float)playerY, 1.0f };
 
     // A direção da luz será ajustada com base no movimento do jogador
     GLfloat lightDir[] = { lightDirX, -0.5f, lightDirZ }; // Um pequeno ajuste na direção da luz para simular uma lanterna
 
     // Definindo características da luz ambiente, difusa e especular
-    GLfloat ambientLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    GLfloat ambientLight[] = { 0.2f, 0.2f, 0.2f, 1.0f };
     GLfloat diffuseLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
     GLfloat specularLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     // Ajuste do brilho do material
     GLfloat shininess = 50.0f; // Brilho médio
 
-    // Ângulo de corte da luz (spot)
-    float spotCutoff = 15.0f; // Ângulo da lanterna
     // Fatores de atenuação baseados em maxDistance
     float constantAttenuation = 1.0f;
-    float linearAttenuation = 4.5f / maxDistance; // Ajuste linear para atingir 0 em maxDistance
+    float linearAttenuation = 5.0f / maxDistance; // Ajuste linear para atingir 0 em maxDistance
     float quadraticAttenuation = 1.0f / (maxDistance * maxDistance); // Ajuste quadrático para suavizar o decaimento
 
     // Chamando a função que configura a iluminação
@@ -97,7 +98,7 @@ void display() {
     cameraFollowPlayer(); // Move a câmera para seguir o jogador
     updateLighting();     // Atualiza a iluminação de acordo com o jogador
     renderMaze();         // Renderiza o labirinto
-    renderPlayerAndDots(); // Renderiza o jogador e os dots
+    renderPlayerAndObjects(); // Renderiza o jogador e os dots
     glPopMatrix();        // Restaura o estado da transformação
 
     // Configura a projeção 2D para renderizar a UI
@@ -130,6 +131,7 @@ void keyboard(unsigned char key, int x, int y) {
             generateMaze(1, 1);
             spawnPlayer();
             spawnDots();
+            spawnBatteries();
             break;
         case 27: // ESC para sair
             exit(0);
@@ -141,19 +143,7 @@ void keyboard(unsigned char key, int x, int y) {
         playerY = nextY;
     }
 
-    for (int i = 0; i < DOT_COUNT; i++) {
-        if (!dots[i].collected && playerX == dots[i].x && playerY == dots[i].y) {
-            dots[i].collected = true;
-            goalDots--;
-            if (goalDots == 0) {
-                printf("Parabéns! Você coletou todos os dots!\n");
-                initMaze();
-                generateMaze(1, 1);
-                spawnPlayer();
-                spawnDots();
-            }
-        }
-    }
+    checkObjectCollision(playerX, playerY);
 
     glutPostRedisplay();
 }
@@ -212,6 +202,7 @@ int main(int argc, char** argv) {
     generateMaze(1, 1);
     spawnPlayer();
     spawnDots();
+    spawnBatteries();
 
     startGameTimer();  // Inicia o tempo no começo do jogo
     glutTimerFunc(1000, updateGameTime, 0);  // Inicia o timer para atualizar o tempo a cada segundo
