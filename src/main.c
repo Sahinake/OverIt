@@ -6,6 +6,7 @@
 #include <math.h>
 
 #include "Maze.h"
+#include "UI.h"
 
 #define WIDTH 20 // Largura do labirinto
 #define HEIGHT 20 // Altura do labirinto
@@ -81,14 +82,21 @@ void updateLighting() {
 void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
+    
+    // Configura a projeção 2D para renderizar a UI
+    setup2DProjection();
+    glPushMatrix(); // Salva o estado atual da transformação
+    renderDotCount(); // Renderiza o contador de dots
+    glPopMatrix(); // Restaura o estado de transformação
 
-    cameraFollowPlayer();
-
-    // Atualiza a iluminação de acordo com o jogador
-    updateLighting();
-
-    renderMaze();
-    renderPlayerAndDots();
+    // Configura a projeção 3D para renderizar o jogo
+    setup3DProjection();  // Configura a projeção 3D para o jogo
+    glPushMatrix();       // Salva o estado da transformação atual
+    cameraFollowPlayer(); // Move a câmera para seguir o jogador
+    updateLighting();     // Atualiza a iluminação de acordo com o jogador
+    renderMaze();         // Renderiza o labirinto
+    renderPlayerAndDots(); // Renderiza o jogador e os dots
+    glPopMatrix();        // Restaura o estado da transformação
 
     glutSwapBuffers();
 }
@@ -151,10 +159,11 @@ void initOpenGL() {
     glCullFace(GL_BACK);
 
     glClearColor(0.0, 0.0, 0.0, 1.0);
+    initFont("./fonts/JungleAdventurer.ttf");  // Especifique o caminho correto da fonte
     
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(60.0, 1.0, 1.0, 50.0);
+    gluPerspective(45.0f, 1.0f, 0.1f, 100.0f);
     glMatrixMode(GL_MODELVIEW);
 }
 

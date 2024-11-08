@@ -1,6 +1,13 @@
 {
     "files.associations": {
         "stdlib.h": "c",
-        "math.h": "c"
+        "math.h": "c",
+        "glut.h": "c",
+        "stdio.h": "c",
+        "dots.h": "c",
+        "maze.h": "c",
+        "stdbool.h": "c",
+        "freeglut.h": "c",
+        "time.h": "c"
     }
 }
