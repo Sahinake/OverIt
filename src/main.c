@@ -8,6 +8,7 @@
 #define WIDTH 20 // Largura do labirinto
 #define HEIGHT 20 // Altura do labirinto
 #define DOT_COUNT 30 // Quantidade de dots a serem coletados
+#define M_PI 3.14159265358979323846
 
 int maze[WIDTH][HEIGHT];
 int playerX, playerY; // Posição do jogador
@@ -16,6 +17,7 @@ int goalDots; // Quantidade de dots que o jogador precisa coletar
 float lightDirX = 0.0f;
 float lightDirZ = -1.0f; // Inicialmente apontando para "frente"
 float spotCutoff = 30.0f; // Ângulo da lanterna ajustável
+float maxDistance = 5.0f; // Distância máxima para a lanterna
 
 typedef struct {
     int x, y;
@@ -112,6 +114,33 @@ void renderMaze() {
     }
 }
 
+bool isDotVisible(int dotX, int dotY) {
+    // Calcula a distância entre o jogador e o dot
+    float dx = dotX - playerX;
+    float dy = dotY - playerY;
+    float distance = sqrt(dx * dx + dy * dy);
+
+    // Verifica se o dot está dentro do alcance da lanterna
+    if (distance > maxDistance) {
+        return false;
+    }
+
+    // Calcula o ângulo entre a direção da lanterna e o dot
+    float angle = atan2(dy, dx) * 180 / M_PI;  // Converte para graus
+    float lightAngle = atan2(lightDirZ, lightDirX) * 180 / M_PI;
+
+    // Calcula a diferença angular
+    float angleDiff = fabs(angle - lightAngle);
+
+    // Ajusta a diferença angular para que esteja entre 0 e 180 graus
+    if (angleDiff > 180.0f) {
+        angleDiff = 360.0f - angleDiff;
+    }
+
+    // Verifica se o dot está dentro do ângulo de abertura da lanterna
+    return angleDiff <= spotCutoff;
+}
+
 // Função para renderizar o jogador e os dots usando materiais
 void renderPlayerAndDots() {
     // Define o material do jogador
@@ -136,7 +165,7 @@ void renderPlayerAndDots() {
     // Renderiza os dots
     setMaterial(dotAmbient, dotDiffuse, dotSpecular, dotShininess);
     for (int i = 0; i < DOT_COUNT; i++) {
-        if (!dots[i].collected) {
+        if (!dots[i].collected && isDotVisible(dots[i].x, dots[i].y)) {
             glPushMatrix();
             glTranslatef(dots[i].x, 0, dots[i].y);
             glutSolidSphere(0.15, 10, 10); // Usa uma esfera pequena para os dots
@@ -176,7 +205,7 @@ void updateLighting() {
     GLfloat lightDir[] = { lightDirX, -0.5f, lightDirZ }; // Um pequeno ajuste na direção da luz para simular uma lanterna
 
     // Definindo características da luz ambiente, difusa e especular
-    GLfloat ambientLight[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+    GLfloat ambientLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
     GLfloat diffuseLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
     GLfloat specularLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
@@ -184,10 +213,19 @@ void updateLighting() {
     GLfloat shininess = 50.0f; // Brilho médio
 
     // Ângulo de corte da luz (spot)
-    float spotCutoff = 30.0f; // Ângulo da lanterna
+    float spotCutoff = 15.0f; // Ângulo da lanterna
+    // Fatores de atenuação baseados em maxDistance
+    float constantAttenuation = 1.0f;
+    float linearAttenuation = 4.5f / maxDistance; // Ajuste linear para atingir 0 em maxDistance
+    float quadraticAttenuation = 1.0f / (maxDistance * maxDistance); // Ajuste quadrático para suavizar o decaimento
 
     // Chamando a função que configura a iluminação
     setLighting(lightPos, lightDir, ambientLight, diffuseLight, specularLight, shininess);
+
+    // Configura a atenuação da luz
+    glLightf(GL_LIGHT0, GL_CONSTANT_ATTENUATION, constantAttenuation);
+    glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, linearAttenuation);
+    glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, quadraticAttenuation);
 }
 
 // Função para renderizar a cena
@@ -226,6 +264,9 @@ void keyboard(unsigned char key, int x, int y) {
             generateMaze(1, 1);
             spawnPlayer();
             spawnDots();
+            break;
+        case 27: // ESC para sair
+            exit(0);
             break;
     }
 
