@@ -205,7 +205,14 @@ bool checkObjectCollision(int playerX, int playerY) {
         if (!batteries[i].collected && playerX == batteries[i].x && playerY == batteries[i].y) {
             batteries[i].collected = true;
             total_batteries--;
-            batteryCharge += 30.0f;
+            if(batteryCharge < 40.0f) {
+                batteryCharge += 30.0f;
+                batteryPercentage += 42.85f;
+            }
+            else {
+                batteryCharge = 70.0f;
+                batteryPercentage = 100.0f;
+            }
         }
     }
     
@@ -214,7 +221,11 @@ bool checkObjectCollision(int playerX, int playerY) {
 // Função para diminuir a bateria ao longo do tempo
 void updateBattery() {
     if (batteryCharge > 0.0f) {
-        batteryCharge -= BATTERY_DECREASE_RATE; // Diminui a bateria por frame
-        if (batteryCharge < 0.0f) batteryCharge = 0.0f; // Evita que a bateria fique negativa
+        batteryCharge -= batteryDecrease; // Diminui a bateria por frame
+        batteryPercentage -= 0.03;
+        if (batteryCharge < 0.0f) {
+            batteryCharge = 0.0f; 
+            batteryPercentage = 0.0f;
+        }   // Evita que a bateria fique negativa
     }
 }

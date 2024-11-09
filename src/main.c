@@ -13,8 +13,9 @@
 #define HEIGHT 20 // Altura do labirinto
 #define DOT_COUNT 30 // Quantidade de dots a serem coletados
 #define BATTERY_COUNT 5 // Quantidade de baterias a serem spawnadas
+#define MAX_BATTERY_PERCENTAGE 100.0f // Capacidade máxima da bateria (100%)
 #define MAX_BATTERY 70.0f // Capacidade máxima da bateria (100%)
-#define BATTERY_DECREASE_RATE 0.01f // Taxa de diminuição da bateria por atualização de frame
+#define BATTERY_DECREASE_RATE 0.02f // Taxa de diminuição da bateria por atualização de frame
 #define M_PI 3.14159265358979323846
 
 int maze[WIDTH][HEIGHT];
@@ -28,6 +29,8 @@ float maxDistance = 5.0f; // Distância máxima para a lanterna
 int window_width = 800, window_height = 600;
 // Inicializa a carga da bateria
 float batteryCharge = MAX_BATTERY; // Bateria começa cheia
+float batteryPercentage = MAX_BATTERY_PERCENTAGE; // A bateria começa com 100%
+float batteryDecrease = BATTERY_DECREASE_RATE;
 
 // Variáveis globais para o tempo
 time_t startTime;
@@ -64,23 +67,23 @@ void setLighting(float lightPos[4], float lightDir[3], float ambient[4], float d
 // Função para a iluminação dinâmica durante o jogo
 void updateLighting() {
     // A posição da luz será sempre a posição do jogador, para simular uma lanterna
-    GLfloat lightPos[] = { (float)playerX, 0.8f, (float)playerY, 1.0f };
+    GLfloat lightPos[] = { (float)playerX, 1.5f, (float)playerY, 1.0f };
 
     // A direção da luz será ajustada com base no movimento do jogador
     GLfloat lightDir[] = { lightDirX, -0.5f, lightDirZ }; // Um pequeno ajuste na direção da luz para simular uma lanterna
 
     // Definindo características da luz ambiente, difusa e especular
-    GLfloat ambientLight[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+    GLfloat ambientLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
     GLfloat diffuseLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
     GLfloat specularLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     // Ajuste do brilho do material
-    GLfloat shininess = 50.0f; // Brilho médio
+    GLfloat shininess = 70.0f; // Brilho médio
     GLfloat spotExponent = 10.0f; // Controla a suavização da borda do cone (quanto maior, mais nítido)
 
     // Fatores de atenuação baseados em maxDistance
     float constantAttenuation = 1.0f;
-    float linearAttenuation = 1.0f / maxDistance; // Ajuste linear para atingir 0 em maxDistance
+    float linearAttenuation = 0.2f / maxDistance; // Ajuste linear para atingir 0 em maxDistance
     float quadraticAttenuation = 0.1f / (maxDistance * maxDistance); // Ajuste quadrático para suavizar o decaimento
 
     // Chamando a função que configura a iluminação
@@ -111,6 +114,7 @@ void display() {
     glPushMatrix(); // Salva o estado atual da transformação
     renderDotCount(); // Renderiza o contador de dots
     renderGameTime();  // Renderiza o tempo de jogo
+    renderBatteryUI();
     glPopMatrix(); // Restaura o estado de transformação
 
     glutSwapBuffers();
@@ -126,10 +130,16 @@ void keyboard(unsigned char key, int x, int y) {
         case 'd': nextX--; lightDirX = -1.0f; lightDirZ = 0.0f; break;
         case 'a': nextX++; lightDirX = 1.0f; lightDirZ = 0.0f; break;
         case '+':
-            if (batteryCharge < 90.0f) batteryCharge += 5.0f; // Aumenta o raio da luz
+            if (batteryCharge < 90.0f) {
+                batteryCharge += 5.0f; 
+                batteryPercentage += 7.143f; // Aumenta o raio da luz
+            }
             break;
         case '-':
-            if (batteryCharge > 10.0f) batteryCharge -= 5.0f; // Diminui o raio da luz
+            if (batteryCharge > 10.0f) {
+                batteryCharge -= 5.0f; 
+                batteryPercentage -= 7.143f; // Diminui o raio da luz
+            }
             break;
         case 'r':
             initMaze();

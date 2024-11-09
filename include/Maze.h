@@ -9,7 +9,7 @@
 #define DOT_COUNT 30 // Quantidade de dots a serem coletados
 #define BATTERY_COUNT 5 // Quantidade de baterias a serem spawnadas
 #define MAX_BATTERY 70.0f // Capacidade máxima da bateria (100%)
-#define BATTERY_DECREASE_RATE 0.01f // Taxa de diminuição da bateria por atualização de frame
+#define BATTERY_DECREASE_RATE 0.02f // Taxa de diminuição da bateria por atualização de frame
 
 extern int maze[WIDTH][HEIGHT];
 extern int playerX, playerY; // Posição do jogador
@@ -19,6 +19,8 @@ extern float lightDirX;
 extern float lightDirZ; // Inicialmente apontando para "frente"
 extern float maxDistance; // Distância máxima para a lanterna
 extern float batteryCharge; // Carga atual da bateria (de 0 a MAX_BATTERY)
+extern float batteryPercentage;
+extern float batteryDecrease;
 
 typedef struct {
     int x, y;
