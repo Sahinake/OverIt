@@ -45,9 +45,11 @@ void generateMaze(int x, int y) {
 
 // Função para posicionar o jogador no ponto inicial
 void spawnPlayer() {
-    playerX = 1;
-    playerY = 1;
-    maze[playerX][playerY] = 0; // Certifica que o ponto inicial está vazio
+    player.x = 1;
+    player.y = 1;
+    player.posX = (float)1;
+    player.posY = (float)1;
+    maze[player.x][player.y] = 0; // Certifica que o ponto inicial está vazio
 }
 
 // Função para gerar dots aleatoriamente em posições válidas no labirinto
@@ -87,21 +89,74 @@ void setMaterial(GLfloat ambient[4], GLfloat diffuse[4], GLfloat specular[4], GL
     glMaterialf(GL_FRONT, GL_SHININESS, shininess);
 }
 
-// Função para renderizar o labirinto em 3D usando materiais
+// Função para inicializar o jogador
+void initializePlayer() {
+    player.posX = 1.0f;            // Posição inicial do jogador no eixo X
+    player.posY = 1.0f;            // Posição inicial do jogador no eixo Y
+    player.speed = 0.5f;           // Velocidade do jogador
+    player.radius = 0.3f;          // Raio de colisão do jogador
+    player.moveDirX = 0.0f;        // Direção inicial no eixo X (parado)
+    player.moveDirY = 0.0f;        // Direção inicial no eixo Y (parado)
+    player.x = (int)floor(player.posX); // Posição inicial do jogador no labirinto (inteira)
+    player.y = (int)floor(player.posY); // Posição inicial do jogador no labirinto (inteira)
+}
+
+// Função para renderizar o labirinto em 3D usando materiais e iluminação
 void renderMaze() {
-    // Define o material das paredes
-    GLfloat wallAmbient[] = { 0.0, 0.0, 0.2, 1.0 };
-    GLfloat wallDiffuse[] = { 0.0, 0.0, 1.0, 1.0 };
-    GLfloat wallSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
-    GLfloat wallShininess = 20.0; // Brilho baixo
+    // Define o material para o contorno azul
+    GLfloat contourAmbient[] = { 0.0, 0.0, 1.0, 1.0 }; // Azul
+    GLfloat contourDiffuse[] = { 0.0, 0.0, 1.0, 1.0 }; // Azul
+    GLfloat contourSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
+    GLfloat contourShininess = 20.0; // Brilho baixo
+
+    // Define o material para o preenchimento preto
+    GLfloat fillAmbient[] = { 0.0, 0.0, 0.0, 1.0 }; // Preto
+    GLfloat fillDiffuse[] = { 0.0, 0.0, 0.0, 1.0 }; // Preto
+    GLfloat fillSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
+    GLfloat fillShininess = 20.0; // Brilho baixo
+
+    // Configuração de iluminação
+    GLfloat lightPosition[] = { 0.0, 10.0, 0.0, 1.0 }; // Posição da luz
+    GLfloat lightAmbient[] = { 0.0, 0.0, 0.0, 1.0 }; // Luz ambiente
+    GLfloat lightDiffuse[] = { 0.2, 0.2, 0.2, 1.0 }; // Luz difusa
+    GLfloat lightSpecular[] = { 1.0, 1.0, 1.0, 1.0 }; // Luz especular
+
+    // Ativa a luz
+    glLightfv(GL_LIGHT2, GL_POSITION, lightPosition);
+    glLightfv(GL_LIGHT2, GL_AMBIENT, lightAmbient);
+    glLightfv(GL_LIGHT2, GL_DIFFUSE, lightDiffuse);
+    glLightfv(GL_LIGHT2, GL_SPECULAR, lightSpecular);
+    glEnable(GL_LIGHT2); // Habilita a luz
+    glEnable(GL_LIGHT2); // Ativa a iluminação
+
+    // Fatores de atenuação baseados em maxDistance
+    float constantAttenuation = 0.2f;
+    float linearAttenuation = 0.9f / maxDistance; // Ajuste linear para atingir 0 em maxDistance
+    float quadraticAttenuation = 1.0f / (maxDistance * maxDistance); // Ajuste quadrático para suavizar o decaimento
+
+    // Configura a atenuação da luz
+    glLightf(GL_LIGHT2, GL_CONSTANT_ATTENUATION, constantAttenuation);
+    glLightf(GL_LIGHT2, GL_LINEAR_ATTENUATION, linearAttenuation);
+    glLightf(GL_LIGHT2, GL_QUADRATIC_ATTENUATION, quadraticAttenuation);
+
+    // Configura a espessura do contorno
+    glLineWidth(5.0f); // Aumenta a espessura do contorno (ajuste conforme necessário)
 
     for (int x = 0; x < WIDTH; x++) {
         for (int y = 0; y < HEIGHT; y++) {
             if (maze[x][y] == 1) { // Desenhar paredes
-                setMaterial(wallAmbient, wallDiffuse, wallSpecular, wallShininess);
+                // Primeiro, desenha o preenchimento preto
+                setMaterial(fillAmbient, fillDiffuse, fillSpecular, fillShininess);
                 glPushMatrix();
                 glTranslatef(x, 0, y);
-                glutSolidCube(1); // Usa um cubo sólido para a parede
+                glutSolidCube(1); // Preenche o interior com um cubo sólido
+                glPopMatrix();
+
+                // Agora, desenha o contorno azul com iluminação
+                setMaterial(contourAmbient, contourDiffuse, contourSpecular, contourShininess);
+                glPushMatrix();
+                glTranslatef(x, 0, y);
+                glutWireCube(1); // Desenha o contorno com um cubo de wireframe
                 glPopMatrix();
             }
         }
@@ -110,8 +165,8 @@ void renderMaze() {
 
 bool isObjectVisible(int objX, int objY) {
     // Calcula a distância entre o jogador e o dot
-    float dx = objX - playerX;
-    float dy = objY - playerY;
+    float dx = objX - player.x;
+    float dy = objY - player.y;
     float distance = sqrt(dx * dx + dy * dy);
 
     // Verifica se o dot está dentro do alcance da lanterna
@@ -146,8 +201,8 @@ void renderPlayerAndObjects() {
     // Renderiza o jogador
     setMaterial(playerAmbient, playerDiffuse, playerSpecular, playerShininess);
     glPushMatrix();
-    glTranslatef(playerX, 0, playerY);
-    glutSolidSphere(0.3, 20, 20); // Usa uma esfera para o jogador
+    glTranslatef(player.posX, 0, player.posY);
+    glutSolidSphere(player.radius, 20, 20); // Usa uma esfera para o jogador
     glPopMatrix();
 
     // Define o material dos dots
@@ -197,6 +252,7 @@ bool checkObjectCollision(int playerX, int playerY) {
                 generateMaze(1, 1);
                 spawnPlayer();
                 spawnDots();
+                spawnBatteries();
             }
         }
     }
