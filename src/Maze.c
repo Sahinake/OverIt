@@ -91,14 +91,16 @@ void setMaterial(GLfloat ambient[4], GLfloat diffuse[4], GLfloat specular[4], GL
 
 // Função para inicializar o jogador
 void initializePlayer() {
-    player.posX = 1.0f;            // Posição inicial do jogador no eixo X
-    player.posY = 1.0f;            // Posição inicial do jogador no eixo Y
-    player.speed = 0.5f;           // Velocidade do jogador
-    player.radius = 0.3f;          // Raio de colisão do jogador
-    player.moveDirX = 0.0f;        // Direção inicial no eixo X (parado)
-    player.moveDirY = 0.0f;        // Direção inicial no eixo Y (parado)
-    player.x = (int)floor(player.posX); // Posição inicial do jogador no labirinto (inteira)
-    player.y = (int)floor(player.posY); // Posição inicial do jogador no labirinto (inteira)
+    player.posX = 1.0f;            
+    player.posY = 1.0f;            
+    player.speed = 0.5f;          
+    player.health = MAX_HEALTH;
+    player.sanity = MAX_SANITY;
+    player.radius = 0.3f;          
+    player.moveDirX = 0.0f;        
+    player.moveDirY = 0.0f;        
+    player.x = (int)floor(player.posX); 
+    player.y = (int)floor(player.posY); 
 }
 
 // Função para renderizar o labirinto em 3D usando materiais e iluminação
@@ -109,9 +111,14 @@ void renderMaze() {
     GLfloat contourSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
     GLfloat contourShininess = 20.0; // Brilho baixo
 
+    // Define o material para o contorno azul
+    GLfloat contourGroundAmbient[] = { 0.0, 0.0, 0.0, 1.0 }; // Azul
+    GLfloat contourGroundDiffuse[] = { 0.0, 0.0, 1.0, 1.0 }; // Azul
+    GLfloat contourGroundSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
+
     // Define o material para o preenchimento preto
     GLfloat fillAmbient[] = { 0.0, 0.0, 0.0, 1.0 }; // Preto
-    GLfloat fillDiffuse[] = { 0.0, 0.0, 0.0, 1.0 }; // Preto
+    GLfloat fillDiffuse[] = { 0.2, 0.2, 0.2, 1.0 }; // Preto
     GLfloat fillSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
     GLfloat fillShininess = 20.0; // Brilho baixo
 
@@ -120,6 +127,12 @@ void renderMaze() {
     GLfloat lightAmbient[] = { 0.0, 0.0, 0.0, 1.0 }; // Luz ambiente
     GLfloat lightDiffuse[] = { 0.2, 0.2, 0.2, 1.0 }; // Luz difusa
     GLfloat lightSpecular[] = { 1.0, 1.0, 1.0, 1.0 }; // Luz especular
+
+    // Material para o chão (pode ser uma cor cinza ou marrom)
+    GLfloat groundAmbient[] = { 0.0, 0.0, 0.0, 1.0 };  // Cor ambiente do chão (cinza claro)
+    GLfloat groundDiffuse[] = { 0.2, 0.2, 0.2, 1.0 };  // Cor difusa do chão
+    GLfloat groundSpecular[] = { 0.3, 0.3, 0.3, 1.0 }; // Reflexão especular (baixo brilho)
+    GLfloat groundShininess = 10.0;  // Baixo brilho para simular um chão fosco
 
     // Ativa a luz
     glLightfv(GL_LIGHT2, GL_POSITION, lightPosition);
@@ -156,6 +169,21 @@ void renderMaze() {
                 setMaterial(contourAmbient, contourDiffuse, contourSpecular, contourShininess);
                 glPushMatrix();
                 glTranslatef(x, 0, y);
+                glutWireCube(1); // Desenha o contorno com um cubo de wireframe
+                glPopMatrix();
+            }
+            else { // Desenhar o chão
+                // Aplicar o material do chão
+                setMaterial(groundAmbient, groundDiffuse, groundSpecular, groundShininess);
+                glPushMatrix();
+                glTranslatef(x, -1.0f, y); // Coloca o chão abaixo das paredes
+                glutSolidCube(1); // Desenha o cubo para o chão
+                glPopMatrix();
+
+                // Agora, desenha o contorno azul com iluminação
+                setMaterial(contourGroundAmbient, contourGroundDiffuse, contourGroundSpecular, contourShininess);
+                glPushMatrix();
+                glTranslatef(x, -1.0f, y);
                 glutWireCube(1); // Desenha o contorno com um cubo de wireframe
                 glPopMatrix();
             }
@@ -276,12 +304,53 @@ bool checkObjectCollision(int playerX, int playerY) {
 
 // Função para diminuir a bateria ao longo do tempo
 void updateBattery() {
-    if (batteryCharge > 0.0f) {
-        batteryCharge -= batteryDecrease; // Diminui a bateria por frame
+    if (batteryPercentage > 100.0f) {
+        batteryCharge = MAX_BATTERY; // Diminui a bateria por frame
+        batteryPercentage = 100.0;
+        maxDistance = 5.0f;
+    }
+    else if (batteryPercentage > 50.0f) {
+        batteryCharge = MAX_BATTERY; // Diminui a bateria por frame
         batteryPercentage -= 0.03;
-        if (batteryCharge < 0.0f) {
-            batteryCharge = 0.0f; 
-            batteryPercentage = 0.0f;
-        }   // Evita que a bateria fique negativa
+        maxDistance = 5.0f;
+    }
+    else if (batteryPercentage > 20.0f) {
+        batteryCharge = 50.0f;
+        batteryPercentage -= 0.03;
+        maxDistance = 4.0f;
+    }
+    else if (batteryPercentage > 0.0f) {
+        batteryCharge = 30.0f;
+        batteryPercentage -= 0.03;
+        maxDistance = 3.0f;
+    }
+    else if (batteryPercentage <= 0.0f) {
+        batteryPercentage = 0.0f;
+        batteryPercentage = 0.0f;
+        maxDistance = 0.0f;
+    }
+}
+
+// Função para atualizar a sanidade e a vida do jogador
+void updatePlayerStatus() {
+    // Verifica se a bateria está vazia
+    if (batteryPercentage <= 0.0f) {
+        // A sanidade diminui quando a bateria está zerada
+        player.sanity -= SANITY_DECREASE_RATE;
+        
+        // Garante que a sanidade não seja menor que 0
+        if (player.sanity < 0.0f) {
+            player.sanity = 0.0f;
+        }
+    }
+
+    // Se a sanidade for 0, a vida também começa a diminuir
+    if (player.sanity == 0.0f) {
+        player.health -= HEALTH_DECREASE_RATE;
+        
+        // Garante que a vida não seja menor que 0
+        if (player.health < 0.0f) {
+            player.health = 0.0f;
+        }
     }
 }

@@ -3,16 +3,15 @@
 
 #include <FTGL/ftgl.h>
 
-extern int goalDots; // Quantidade de dots restantes
-
-// Variáveis globais para o tempo
 extern time_t startTime;
 extern time_t currentTime;
 extern int elapsedTime;
 extern int max_font_height;
 extern int min_font_height;
 extern int window_width, window_height;
+extern int goalDots;
 extern float batteryPercentage;
+extern float batteryDecrease;
 
 void initMaxFont(const char* fontPath);
 void initMinFont(const char* fontPath);
@@ -23,5 +22,7 @@ void renderGameTime();
 void setup2DProjection();
 void setup3DProjection();
 void renderBatteryUI();
+void renderSanityUI();
+void renderHealthUI();
 
 #endif

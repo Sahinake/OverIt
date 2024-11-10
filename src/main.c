@@ -9,13 +9,17 @@
 #include "UI.h"
 #include "Time.h"
 
-#define WIDTH 20 // Largura do labirinto
-#define HEIGHT 20 // Altura do labirinto
-#define DOT_COUNT 30 // Quantidade de dots a serem coletados
-#define BATTERY_COUNT 5 // Quantidade de baterias a serem spawnadas
-#define MAX_BATTERY_PERCENTAGE 100.0f // Capacidade máxima da bateria (100%)
-#define MAX_BATTERY 70.0f // Capacidade máxima da bateria (100%)
-#define BATTERY_DECREASE_RATE 0.02f // Taxa de diminuição da bateria por atualização de frame
+#define WIDTH 20                        // Largura do labirinto
+#define HEIGHT 20                       // Altura do labirinto
+#define DOT_COUNT 30                    // Quantidade de dots a serem coletados
+#define BATTERY_COUNT 5                 // Quantidade de baterias a serem spawnadas
+#define MAX_BATTERY_PERCENTAGE 100.0f   // Capacidade máxima da bateria (100%)
+#define MAX_BATTERY 70.0f               // Capacidade máxima da lanterna
+#define MAX_HEALTH 100.0f               // Capacidade máxima da vida
+#define MAX_SANITY 100.0f               // Capacidade máxima da sanidade
+#define BATTERY_DECREASE_RATE 0.02f     // Taxa de diminuição da bateria por atualização de frame
+#define HEALTH_DECREASE_RATE 0.05f      // Taxa de diminuição da bateria por atualização de frame
+#define SANITY_DECREASE_RATE 0.05f      // Taxa de diminuição da bateria por atualização de frame
 #define M_PI 3.14159265358979323846
 
 int maze[WIDTH][HEIGHT];
@@ -26,10 +30,9 @@ int goalDots; // Quantidade de dots que o jogador precisa coletar
 int total_batteries = 5;
 
 float lightDirX = 0.0f;
-float lightDirZ = -1.0f; // Inicialmente apontando para "frente"
-float maxDistance = 5.0f; // Distância máxima para a lanterna
+float lightDirZ = 1.0f;     // Inicialmente apontando para "frente"
+float maxDistance = 5.0f;   // Distância máxima para a lanterna
 
-// Inicializa a carga da bateria
 float batteryCharge = MAX_BATTERY; // Bateria começa cheia
 float batteryPercentage = MAX_BATTERY_PERCENTAGE; // A bateria começa com 100%
 float batteryDecrease = BATTERY_DECREASE_RATE;
@@ -60,7 +63,6 @@ void cameraFollowPlayer() {
 void setLighting(float lightPos[4], float lightDir[3], float ambient[4], float diffuse[4], float specular[4], float shininess, float spotExponent) {
     glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
     glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, lightDir);
-    glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, batteryCharge); // Usando o valor ajustável de spotCutoff
     glLightf(GL_LIGHT0, GL_SPOT_EXPONENT, spotExponent); // Define a suavização da borda do cone
     glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
@@ -71,24 +73,36 @@ void setLighting(float lightPos[4], float lightDir[3], float ambient[4], float d
 // Função para a iluminação dinâmica durante o jogo
 void updateLighting() {
     // A posição da luz será sempre a posição do jogador, para simular uma lanterna
-    GLfloat lightPos[] = { (float)player.posX, 1.5f, (float)player.posY, 1.0f };
+    GLfloat lightPos[] = { (float)player.posX, 1.0f, (float)player.posY, 1.0f };
 
     // A direção da luz será ajustada com base no movimento do jogador
     GLfloat lightDir[] = { lightDirX, -0.5f, lightDirZ }; // Um pequeno ajuste na direção da luz para simular uma lanterna
 
     // Definindo características da luz ambiente, difusa e especular
     GLfloat ambientLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-    GLfloat diffuseLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-    GLfloat specularLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    GLfloat lightIntensity;
+
+    if(batteryCharge == 0) {
+        lightIntensity = 0.0f;
+    }
+    else {
+         // A intensidade da luz vai diminuir com a carga da bateria
+        lightIntensity = batteryCharge / 100.0f; // A intensidade é proporcional à carga da bateria
+    }
+    
+    GLfloat diffuseLight[] = { lightIntensity, lightIntensity, lightIntensity, 1.0f };  // A luz fica mais fraca à medida que a bateria acaba
+    // Especular (reflexão) também pode ser ajustado, mas normalmente é mais sutil
+    GLfloat specularLight[] = { lightIntensity, lightIntensity, lightIntensity, 1.0f };
 
     // Ajuste do brilho do material
     GLfloat shininess = 100.0f; // Brilho médio
-    GLfloat spotExponent = 5.0f; // Controla a suavização da borda do cone (quanto maior, mais nítido)
+    GLfloat spotExponent = 10.0f; // Controla a suavização da borda do cone (quanto maior, mais nítido)
+    GLfloat spotCutoff = 30.0f;  // Ângulo do cone de iluminação (quanto menor, mais estreito o cone)
 
     // Fatores de atenuação baseados em maxDistance
     float constantAttenuation = 1.0f;
-    float linearAttenuation = 0.2f / maxDistance; // Ajuste linear para atingir 0 em maxDistance
-    float quadraticAttenuation = 0.1f / (maxDistance * maxDistance); // Ajuste quadrático para suavizar o decaimento
+    float linearAttenuation = 0.1f / maxDistance; // Ajuste linear para atingir 0 em maxDistance
+    float quadraticAttenuation = 0.05f / (maxDistance * maxDistance); // Ajuste quadrático para suavizar o decaimento
 
     // Chamando a função que configura a iluminação
     setLighting(lightPos, lightDir, ambientLight, diffuseLight, specularLight, shininess, spotExponent);
@@ -97,6 +111,9 @@ void updateLighting() {
     glLightf(GL_LIGHT0, GL_CONSTANT_ATTENUATION, constantAttenuation);
     glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, linearAttenuation);
     glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, quadraticAttenuation);
+
+    // Define o ângulo do cone da lanterna (spotCutoff) e o foco (spotExponent)
+    glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, spotCutoff);
 }
 
 // Função para verificar a colisão com as paredes considerando o raio da esfera
@@ -182,6 +199,8 @@ void display() {
     renderDotCount(); // Renderiza o contador de dots
     renderGameTime();  // Renderiza o tempo de jogo
     renderBatteryUI();
+    renderSanityUI();
+    renderHealthUI();
     glPopMatrix(); // Restaura o estado de transformação
 
     glutSwapBuffers();
@@ -289,6 +308,7 @@ void reshape(int w, int h) {
 void update(int value) {
     movePlayer();            // Move o jogador de acordo com a direção e velocidade
     updateBattery();
+    updatePlayerStatus();
     glutPostRedisplay();
 
     // Define o próximo loop de atualização (geralmente 16ms para 60fps)

@@ -4,42 +4,47 @@
 #include <stdbool.h>
 #include <GL/glut.h>
 
-#define WIDTH 20 // Largura do labirinto
-#define HEIGHT 20 // Altura do labirinto
-#define DOT_COUNT 30 // Quantidade de dots a serem coletados
-#define BATTERY_COUNT 5 // Quantidade de baterias a serem spawnadas
-#define MAX_BATTERY 70.0f // Capacidade máxima da bateria (100%)
-#define BATTERY_DECREASE_RATE 0.02f // Taxa de diminuição da bateria por atualização de frame
+#define WIDTH 20 
+#define HEIGHT 20 
+#define DOT_COUNT 30 
+#define BATTERY_COUNT 5 
+#define MAX_BATTERY 70.0f 
+#define MAX_HEALTH 100.0f             
+#define MAX_SANITY 100.0f            
+#define BATTERY_DECREASE_RATE 0.02f 
+#define HEALTH_DECREASE_RATE 0.05f
+#define SANITY_DECREASE_RATE 0.05f
 
 extern int maze[WIDTH][HEIGHT];
 extern int maze_widht, maze_height;
-extern int goalDots; // Quantidade de dots que o jogador precisa coletar
+extern int goalDots;            
 extern int total_batteries;
 extern float lightDirX;
-extern float lightDirZ; // Inicialmente apontando para "frente"
-extern float maxDistance; // Distância máxima para a lanterna
-extern float batteryCharge; // Carga atual da bateria (de 0 a MAX_BATTERY)
+extern float lightDirZ;         
+extern float maxDistance;      
+extern float batteryCharge;     
 extern float batteryPercentage;
-extern float batteryDecrease;
 
 // Estrutura para o jogador
 typedef struct {
-    float posX, posY;      // Posição do jogador
-    float speed;           // Velocidade de movimento do jogador
-    float radius;          // Raio de colisão do jogador
-    float moveDirX, moveDirY; // Direção de movimento
-    int x, y;              // Posições inteiras (usadas para labirinto)
+    float posX, posY;           // Posição do jogador
+    float health;               // Vida máxima do jogador
+    float sanity;               // Sanidade máxima do jogador
+    float speed;                // Velocidade de movimento do jogador
+    float radius;               // Raio de colisão do jogador
+    float moveDirX, moveDirY;   // Direção de movimento
+    int x, y;                   // Posições inteiras (usadas para labirinto)
 } Player;
 
 typedef struct {
     int x, y;
-    bool collected; // Indica se o dot já foi coletado
+    bool collected;     // Indica se o dot já foi coletado
 } Dot;
 
 // Estrutura de Bateria
 typedef struct {
     int x, y;
-    bool collected; // Indica se a bateria já foi coletada
+    bool collected;     // Indica se a bateria já foi coletada
 } Battery;
 
 extern Dot dots[DOT_COUNT];
@@ -58,5 +63,6 @@ bool isObjectVisible(int dotX, int dotY);
 void renderPlayerAndObjects();
 bool checkObjectCollision(int playerPosX, int playerPosY);
 void updateBattery();
+void updatePlayerStatus();
 
-#endif // MAZE_H
+#endif

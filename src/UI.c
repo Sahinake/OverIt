@@ -84,8 +84,118 @@ void renderGameTime() {
     // Renderiza o texto do tempo na tela no canto superior direito
     glDisable(GL_LIGHTING);
     glColor3f(1.0, 1.0, 1.0);  // Cor do texto (branco)
-    renderText(maxFont, timeText, window_width - text_width - 50, 50);  // Exibe o tempo ajustado
+    renderText(maxFont, timeText, window_width - text_width - 50, 60);  // Exibe o tempo ajustado
     glEnable(GL_LIGHTING);
+}
+
+void renderBatteryUI() {
+    glPushMatrix();
+    glLoadIdentity();
+    glDisable(GL_LIGHTING);
+    
+    char battery_line1[] = "POWER";
+    char battery_line2[] = "FLASHLIGHT";
+
+    // Renderiza o texto no canto superior esquerdo
+    renderText(minFont, battery_line1, 50, glutGet(GLUT_WINDOW_HEIGHT) - 175.0f);         
+    renderText(minFont, battery_line2, 50, glutGet(GLUT_WINDOW_HEIGHT) - 130.0f);         
+    
+    // Definindo as coordenadas e o tamanho da barra
+    float x = 50.0f;  // Posição X do canto esquerdo da barra (próximo à borda esquerda da tela)
+    float y = glutGet(GLUT_WINDOW_HEIGHT) - 150.0f;   // Posição Y do canto superior da barra (próximo à borda superior da tela)
+    float width = 150.0f; // Largura total da barra de bateria
+    float height = 15.0f; // Altura da barra de bateria
+
+    glRasterPos2f(x, y);  // Define a posição do texto
+
+    // Ajustando a largura da barra de bateria com base na porcentagem
+    float batteryWidth = width * (batteryPercentage / 100.0f);  // A largura será proporcional à porcentagem da bateria
+
+    // Configurando a cor da barra de bateria (verde quando alta, vermelho quando baixa)
+    if (batteryPercentage > 50.0f) {
+        glColor3f(1.0f, 1.0f, 1.0f); // Branco
+    } else if (batteryPercentage > 20.0f){
+        glColor3f(1.0f, 1.0f, 0.0f); // Amarelo
+    } else {
+        glColor3f(1.0f, 0.0f, 0.0f); // Vermelho
+    }
+    
+    // Desenhando o preenchimento da barra de bateria
+    glBegin(GL_QUADS);
+    glVertex2f(x, y); // Canto superior esquerdo
+    glVertex2f(x + batteryWidth, y); // Canto superior direito (ajustado pela porcentagem)
+    glVertex2f(x + batteryWidth, y - height); // Canto inferior direito
+    glVertex2f(x, y - height); // Canto inferior esquerdo
+    glEnd();
+
+    glPopMatrix();
+    glEnable(GL_LIGHTING);
+    glColor3f(1.0f, 1.0f, 1.0f); // Cor cinza para o fundo
+}
+
+void renderHealthUI() {
+    glPushMatrix();
+    glLoadIdentity();
+    glDisable(GL_LIGHTING);
+    
+    int health = (int) player.health;  
+
+    char healthText[50];
+    char health_line[] = "HEALTH";
+
+    glColor3f(1.0, 1.0, 1.0);  // Cor do texto (branco)
+    renderText(minFont, health_line, 50, glutGet(GLUT_WINDOW_HEIGHT) - 40.0f); 
+    sprintf(healthText, "%02d", health);  // Converte o tempo para formato min:seg
+
+    float text_width = getTextWidth(maxFont, healthText);
+
+    // Renderiza o texto do tempo na tela no canto superior direito
+    glDisable(GL_LIGHTING);
+    renderText(maxFont, healthText, 130, window_height - 40);  // Exibe o tempo ajustado
+    glEnable(GL_LIGHTING);
+}
+
+void renderSanityUI() {
+    glPushMatrix();
+    glLoadIdentity();
+    glDisable(GL_LIGHTING);
+    
+    char sanyty_line[] = "SANITY";
+
+    // Renderiza o texto no canto superior esquerdo
+    renderText(minFont, sanyty_line, 50, glutGet(GLUT_WINDOW_HEIGHT) - 235.0f);          
+    
+    // Definindo as coordenadas e o tamanho da barra
+    float x = 50.0f;  // Posição X do canto esquerdo da barra (próximo à borda esquerda da tela)
+    float y = glutGet(GLUT_WINDOW_HEIGHT) - 210.0f;   // Posição Y do canto superior da barra (próximo à borda superior da tela)
+    float width = 150.0f; // Largura total da barra de bateria
+    float height = 15.0f; // Altura da barra de bateria
+
+    glRasterPos2f(x, y);  // Define a posição do texto
+
+    // Ajustando a largura da barra de bateria com base na porcentagem
+    float sanityWidth = width * (player.sanity / 100.0f);  // A largura será proporcional à porcentagem da bateria
+
+    // Configurando a cor da barra de bateria (verde quando alta, vermelho quando baixa)
+    if (player.sanity > 50.0f) {
+        glColor3f(1.0f, 1.0f, 1.0f); // Branco
+    } else if (player.sanity > 20.0f){
+        glColor3f(1.0f, 1.0f, 0.0f); // Amarelo
+    } else {
+        glColor3f(1.0f, 0.0f, 0.0f); // Vermelho
+    }
+    
+    // Desenhando o preenchimento da barra de bateria
+    glBegin(GL_QUADS);
+    glVertex2f(x, y); // Canto superior esquerdo
+    glVertex2f(x + sanityWidth, y); // Canto superior direito (ajustado pela porcentagem)
+    glVertex2f(x + sanityWidth, y - height); // Canto inferior direito
+    glVertex2f(x, y - height); // Canto inferior esquerdo
+    glEnd();
+
+    glPopMatrix();
+    glEnable(GL_LIGHTING);
+    glColor3f(1.0f, 1.0f, 1.0f); // Cor cinza para o fundo
 }
 
 // Função para configurar a projeção 2D da UI
@@ -110,50 +220,4 @@ void setup3DProjection() {
     gluPerspective(45.0, (double)glutGet(GLUT_WINDOW_WIDTH) / (double)glutGet(GLUT_WINDOW_HEIGHT), 1.0, 100.0); // Definindo a perspectiva para 3D
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-}
-
-void renderBatteryUI() {
-    glPushMatrix();
-    glLoadIdentity();
-    glDisable(GL_LIGHTING);
-    
-    char battery_line1[] = "POWER";
-    char battery_line2[] = "FLASHLIGHT";
-
-    // Renderiza o texto no canto superior esquerdo
-    renderText(minFont, battery_line1, 50, glutGet(GLUT_WINDOW_HEIGHT) - 100.0f);         
-    renderText(minFont, battery_line2, 50, glutGet(GLUT_WINDOW_HEIGHT) - 50.0f);         
-    
-    // Definindo as coordenadas e o tamanho da barra
-    float x = 50.0f;  // Posição X do canto esquerdo da barra (próximo à borda esquerda da tela)
-    float y = glutGet(GLUT_WINDOW_HEIGHT) - 70.0f;   // Posição Y do canto superior da barra (próximo à borda superior da tela)
-    float width = 150.0f; // Largura total da barra de bateria
-    float height = 20.0f; // Altura da barra de bateria
-
-    glRasterPos2f(x, y);  // Define a posição do texto
-
-    // Ajustando a largura da barra de bateria com base na porcentagem
-    float batteryWidth = width * (batteryPercentage / 100.0f);  // A largura será proporcional à porcentagem da bateria
-
-    // Configurando a cor da barra de bateria (verde quando alta, vermelho quando baixa)
-    if (batteryPercentage > 50.0f) {
-        glColor3f(1.0f, 1.0f, 1.0f); // Branco
-    } else if (batteryPercentage > 20.0f){
-        glColor3f(1.0f, 1.0f, 0.0f); // Amarelo
-    } else {
-        glColor3f(1.0f, 0.0f, 0.0f); // Vermelho
-    }
-    
-
-    // Desenhando o preenchimento da barra de bateria
-    glBegin(GL_QUADS);
-    glVertex2f(x, y); // Canto superior esquerdo
-    glVertex2f(x + batteryWidth, y); // Canto superior direito (ajustado pela porcentagem)
-    glVertex2f(x + batteryWidth, y - height); // Canto inferior direito
-    glVertex2f(x, y - height); // Canto inferior esquerdo
-    glEnd();
-
-    glPopMatrix();
-    glEnable(GL_LIGHTING);
-    glColor3f(1.0f, 1.0f, 1.0f); // Cor cinza para o fundo
 }
