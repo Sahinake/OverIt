@@ -93,7 +93,7 @@ void setMaterial(GLfloat ambient[4], GLfloat diffuse[4], GLfloat specular[4], GL
 void initializePlayer() {
     player.posX = 1.0f;            
     player.posY = 1.0f;            
-    player.speed = 0.5f;          
+    player.speed = 0.7f;          
     player.health = MAX_HEALTH;
     player.sanity = MAX_SANITY;
     player.radius = 0.3f;          
@@ -289,14 +289,7 @@ bool checkObjectCollision(int playerX, int playerY) {
         if (!batteries[i].collected && playerX == batteries[i].x && playerY == batteries[i].y) {
             batteries[i].collected = true;
             total_batteries--;
-            if(batteryCharge < 40.0f) {
-                batteryCharge += 30.0f;
-                batteryPercentage += 42.85f;
-            }
-            else {
-                batteryCharge = 70.0f;
-                batteryPercentage = 100.0f;
-            }
+            batteryPercentage += 20.0f;
         }
     }
     
@@ -311,17 +304,17 @@ void updateBattery() {
     }
     else if (batteryPercentage > 50.0f) {
         batteryCharge = MAX_BATTERY; // Diminui a bateria por frame
-        batteryPercentage -= 0.03;
+        batteryPercentage -= 0.05;
         maxDistance = 5.0f;
     }
     else if (batteryPercentage > 20.0f) {
         batteryCharge = 50.0f;
-        batteryPercentage -= 0.03;
+        batteryPercentage -= 0.05;
         maxDistance = 4.0f;
     }
     else if (batteryPercentage > 0.0f) {
         batteryCharge = 30.0f;
-        batteryPercentage -= 0.03;
+        batteryPercentage -= 0.05;
         maxDistance = 3.0f;
     }
     else if (batteryPercentage <= 0.0f) {
