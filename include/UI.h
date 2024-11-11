@@ -28,6 +28,7 @@ void initMinFont(const char* fontPath);
 float getTextWidth(FTGLfont *font, const char* text);
 void renderText(FTGLfont *font, const char* text, float x, float y);
 void renderDotCount();
+void renderLevel();
 void renderGameTime();
 void setup2DProjection();
 void setup3DProjection();

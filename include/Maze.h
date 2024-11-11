@@ -11,7 +11,7 @@
 #define MAX_BATTERY 70.0f 
 #define MAX_HEALTH 100.0f             
 #define MAX_SANITY 100.0f            
-#define BATTERY_DECREASE_RATE 0.01f 
+#define BATTERY_DECREASE_RATE 0.005f 
 #define HEALTH_DECREASE_RATE 0.02f
 #define SANITY_DECREASE_RATE 0.02f
 

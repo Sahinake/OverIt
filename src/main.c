@@ -17,7 +17,7 @@
 #define MAX_BATTERY 70.0f               // Capacidade máxima da lanterna
 #define MAX_HEALTH 100.0f               // Capacidade máxima da vida
 #define MAX_SANITY 100.0f               // Capacidade máxima da sanidade
-#define BATTERY_DECREASE_RATE 0.01f     // Taxa de diminuição da bateria por atualização de frame
+#define BATTERY_DECREASE_RATE 0.005f     // Taxa de diminuição da bateria por atualização de frame
 #define HEALTH_DECREASE_RATE 0.02f      // Taxa de diminuição da bateria por atualização de frame
 #define SANITY_DECREASE_RATE 0.02f      // Taxa de diminuição da bateria por atualização de frame
 #define M_PI 3.14159265358979323846
@@ -200,6 +200,7 @@ void display() {
     glPushMatrix(); // Salva o estado atual da transformação
     renderDotCount(); // Renderiza o contador de dots
     renderGameTime();  // Renderiza o tempo de jogo
+    renderLevel();
     renderBatteryUI();
     renderSanityUI();
     renderHealthUI();

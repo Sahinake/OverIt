@@ -341,17 +341,17 @@ void updateBattery() {
     }
     else if (batteryPercentage > 50.0f) {
         batteryCharge = MAX_BATTERY; // Diminui a bateria por frame
-        batteryPercentage -= 0.05;
+        batteryPercentage -= BATTERY_DECREASE_RATE;
         maxDistance = 5.0f;
     }
     else if (batteryPercentage > 20.0f) {
         batteryCharge = 50.0f;
-        batteryPercentage -= 0.05;
+        batteryPercentage -= BATTERY_DECREASE_RATE;
         maxDistance = 4.0f;
     }
     else if (batteryPercentage > 0.0f) {
         batteryCharge = 30.0f;
-        batteryPercentage -= 0.05;
+        batteryPercentage -= BATTERY_DECREASE_RATE;
         maxDistance = 3.0f;
     }
     else if (batteryPercentage <= 0.0f) {

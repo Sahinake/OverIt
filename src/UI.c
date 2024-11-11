@@ -82,6 +82,27 @@ void renderDotCount() {
 }
 
 // Função para renderizar o tempo na UI
+void renderLevel() {
+    glPushMatrix();
+    glLoadIdentity();
+    glDisable(GL_LIGHTING);
+
+    char level[50];
+    char level_line[] = "LEVEL";
+    sprintf(level, "%d", player.level);
+
+    float text_width = getTextWidth(maxFont, level);
+    float line_width = getTextWidth(maxFont, level);
+
+    renderText(minFont, level_line, window_width - line_width - 115, 100);  
+
+    glColor3f(1.0, 1.0, 1.0);  
+    renderText(maxFont, level, window_width - text_width - 50, 100);
+    glEnable(GL_LIGHTING);
+    glPopMatrix();
+}
+
+// Função para renderizar o tempo na UI
 void renderGameTime() {
     int minutes = elapsedTime / 60;  // Calcula os minutos
     int seconds = elapsedTime % 60;  // Calcula os segundos
