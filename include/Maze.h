@@ -11,9 +11,9 @@
 #define MAX_BATTERY 70.0f 
 #define MAX_HEALTH 100.0f             
 #define MAX_SANITY 100.0f            
-#define BATTERY_DECREASE_RATE 0.02f 
-#define HEALTH_DECREASE_RATE 0.05f
-#define SANITY_DECREASE_RATE 0.05f
+#define BATTERY_DECREASE_RATE 0.01f 
+#define HEALTH_DECREASE_RATE 0.02f
+#define SANITY_DECREASE_RATE 0.02f
 
 extern int maze[WIDTH][HEIGHT];
 extern int maze_widht, maze_height;
@@ -33,6 +33,7 @@ typedef struct {
     float speed;                // Velocidade de movimento do jogador
     float radius;               // Raio de colisão do jogador
     float moveDirX, moveDirY;   // Direção de movimento
+    int flashlight;             // Lanterna ligada = 1, desligada = 0
     int x, y;                   // Posições inteiras (usadas para labirinto)
     int level;
 } Player;

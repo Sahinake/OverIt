@@ -106,6 +106,7 @@ void initializePlayer() {
     player.x = (int)floor(player.posX); 
     player.y = (int)floor(player.posY); 
     player.level = 1;
+    player.flashlight = 1;
 }
 
 void initializeExit() {
@@ -324,7 +325,16 @@ bool checkObjectCollision() {
 
 // Função para diminuir a bateria ao longo do tempo
 void updateBattery() {
-    if (batteryPercentage > 100.0f) {
+    if (player.flashlight == 0) {
+        batteryPercentage += 0.01f;
+        batteryCharge = 0.0f;
+        maxDistance = 0.0f;
+
+        if (batteryPercentage >= 100.0f) {
+            batteryPercentage = 100.0f;
+        }
+    }
+    else if (batteryPercentage > 100.0f) {
         batteryCharge = MAX_BATTERY; // Diminui a bateria por frame
         batteryPercentage = 100.0;
         maxDistance = 5.0f;
@@ -358,6 +368,15 @@ void updatePlayerStatus() {
         // A sanidade diminui quando a bateria está zerada
         player.sanity -= SANITY_DECREASE_RATE;
         
+        // Garante que a sanidade não seja menor que 0
+        if (player.sanity < 0.0f) {
+            player.sanity = 0.0f;
+        }
+    }
+
+    if (player.flashlight == 0) {
+        player.sanity -= 0.01f;
+
         // Garante que a sanidade não seja menor que 0
         if (player.sanity < 0.0f) {
             player.sanity = 0.0f;
@@ -405,6 +424,7 @@ void updateGame() {
         spawnBatteries();
         initializeExit();
         generateExit();
+        batteryPercentage = 100.0f;
     }
 }
 

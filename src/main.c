@@ -17,9 +17,9 @@
 #define MAX_BATTERY 70.0f               // Capacidade máxima da lanterna
 #define MAX_HEALTH 100.0f               // Capacidade máxima da vida
 #define MAX_SANITY 100.0f               // Capacidade máxima da sanidade
-#define BATTERY_DECREASE_RATE 0.02f     // Taxa de diminuição da bateria por atualização de frame
-#define HEALTH_DECREASE_RATE 0.05f      // Taxa de diminuição da bateria por atualização de frame
-#define SANITY_DECREASE_RATE 0.05f      // Taxa de diminuição da bateria por atualização de frame
+#define BATTERY_DECREASE_RATE 0.01f     // Taxa de diminuição da bateria por atualização de frame
+#define HEALTH_DECREASE_RATE 0.02f      // Taxa de diminuição da bateria por atualização de frame
+#define SANITY_DECREASE_RATE 0.02f      // Taxa de diminuição da bateria por atualização de frame
 #define M_PI 3.14159265358979323846
 
 int maze[WIDTH][HEIGHT];
@@ -83,7 +83,7 @@ void updateLighting() {
     GLfloat ambientLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
     GLfloat lightIntensity;
 
-    if(batteryCharge == 0) {
+    if(batteryCharge == 0 || player.flashlight == 0) {
         lightIntensity = 0.0f;
     }
     else {
@@ -235,6 +235,9 @@ void keyboardDown(unsigned char key, int x, int y) {
         lightDirX = -1.0f; 
         lightDirZ = 0.0f; 
     }
+    else if (key == 'f' || key == 'F') {
+        player.flashlight = player.flashlight == 1 ? 0 : 1;
+    }
     else if(key == '+') {
         if (batteryCharge < 90.0f) {
             batteryCharge += 5.0f; 
@@ -265,8 +268,14 @@ void keyboardDown(unsigned char key, int x, int y) {
 // Função para capturar o evento de soltar a tecla e zerar a direção de movimento
 void keyboardUp(unsigned char key, int x, int y) {
     switch (key) {
-        case 's': case 'w': player.moveDirY = 0.0f; break;
-        case 'd': case 'a': player.moveDirX = 0.0f; break;
+        case 's': player.moveDirY = 0.0f; break;
+        case 'w': player.moveDirY = 0.0f; break;
+        case 'd': player.moveDirX = 0.0f; break;
+        case 'a': player.moveDirX = 0.0f; break;
+        case 'S': player.moveDirY = 0.0f; break;
+        case 'W': player.moveDirY = 0.0f; break;
+        case 'D': player.moveDirX = 0.0f; break;
+        case 'A': player.moveDirX = 0.0f; break;
     }
     glutPostRedisplay();
 }
