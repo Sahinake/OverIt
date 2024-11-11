@@ -2,6 +2,7 @@
 #include <GL/glut.h>
 #include <stdio.h>
 #include <time.h>
+#include <math.h>
 
 #include "UI.h"
 #include "Maze.h"
@@ -9,6 +10,13 @@
 // Declaração dos ponteiros para as fontes
 FTGLfont *maxFont;
 FTGLfont *minFont;
+
+// Vértices do triângulo
+Point triangle[3] = {
+    {50, 50},    // Vértice superior
+    {40, 80},    // Vértice inferior esquerdo
+    {60, 80}     // Vértice inferior direito
+};
 
 // Função de inicialização da fonte
 void initMaxFont(const char* fontPath) {
@@ -69,6 +77,8 @@ void renderDotCount() {
     renderText(minFont, dots_line1, 50, 50);         // Primeira linha ("REMAINING")
     renderText(minFont, dots_line2, 50, 70);         // Segunda linha ("DOTS")
     renderText(maxFont, dots_count, 105, 85);        // Quantidade de dots
+
+
 }
 
 // Função para renderizar o tempo na UI
@@ -86,6 +96,7 @@ void renderGameTime() {
     glColor3f(1.0, 1.0, 1.0);  // Cor do texto (branco)
     renderText(maxFont, timeText, window_width - text_width - 50, 60);  // Exibe o tempo ajustado
     glEnable(GL_LIGHTING);
+    glPopMatrix();
 }
 
 void renderBatteryUI() {
@@ -195,7 +206,7 @@ void renderSanityUI() {
 
     glPopMatrix();
     glEnable(GL_LIGHTING);
-    glColor3f(1.0f, 1.0f, 1.0f); // Cor cinza para o fundo
+    glColor3f(1.0f, 1.0f, 1.0f);
 }
 
 // Função para configurar a projeção 2D da UI

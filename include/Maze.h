@@ -34,6 +34,7 @@ typedef struct {
     float radius;               // Raio de colisão do jogador
     float moveDirX, moveDirY;   // Direção de movimento
     int x, y;                   // Posições inteiras (usadas para labirinto)
+    int level;
 } Player;
 
 typedef struct {
@@ -47,9 +48,16 @@ typedef struct {
     bool collected;     // Indica se a bateria já foi coletada
 } Battery;
 
+typedef struct {
+    int x, y;             // Posições X e Y no labirinto
+    bool active;          // Indica se a saída está visível/ativada
+    bool reached;         // Indica se o jogador alcançou a saída
+} Exit;
+
 extern Dot dots[DOT_COUNT];
 extern Battery batteries[BATTERY_COUNT]; // Vetor de baterias
 extern Player player;
+extern Exit exitDoor;
 
 void initMaze();
 void generateMaze(int x, int y);
@@ -57,12 +65,16 @@ void spawnPlayer();
 void spawnDots();
 void spawnBatteries();
 void initializePlayer();
+void initializeExit();
 void setMaterial(GLfloat ambient[4], GLfloat diffuse[4], GLfloat specular[4], GLfloat shininess);
 void renderMaze();
 bool isObjectVisible(int dotX, int dotY);
 void renderPlayerAndObjects();
-bool checkObjectCollision(int playerPosX, int playerPosY);
+bool checkObjectCollision();
 void updateBattery();
 void updatePlayerStatus();
+void generateExit();
+void updateGame();
+void renderScene();
 
 #endif

@@ -46,7 +46,8 @@ int min_font_height = 14;
 
 Dot dots[DOT_COUNT];
 Battery batteries[BATTERY_COUNT];
-Player player; // Instância do jogador
+Player player; 
+Exit exitDoor;
 
 // Função para a câmera seguir o jogador
 void cameraFollowPlayer() {
@@ -162,7 +163,7 @@ void movePlayer() {
     float newY = player.posY + player.moveDirY * player.speed;
 
     if(newX > 0 && newX < WIDTH && newY > 0 && newY < HEIGHT) {
-        if(maze[(int)floor(newX)][(int)floor(newY)] == 0) {
+        if(maze[(int)floor(newX)][(int)floor(newY)] != 1) {
             // Verifica colisão com as paredes
             if (checkCollision(newX, newY)) {
                 player.posX = newX;
@@ -170,8 +171,10 @@ void movePlayer() {
                 player.x = (int)(player.posX);
                 player.y = (int)(player.posY);
                 
-                // Verifica colisão com objetos (se houver)
-                checkObjectCollision(player.x, player.y);
+                if(maze[player.x][player.y] == 2 || maze[player.x][player.y] == 3) {
+                    // Verifica colisão com objetos (se houver)
+                    checkObjectCollision();
+                }
             }
         }
     }
@@ -189,8 +192,7 @@ void display() {
     glPushMatrix();       // Salva o estado da transformação atual
     cameraFollowPlayer(); // Move a câmera para seguir o jogador
     updateLighting();     // Atualiza a iluminação de acordo com o jogador
-    renderMaze();         // Renderiza o labirinto
-    renderPlayerAndObjects(); // Renderiza o jogador e os dots
+    renderScene();        // Renderiza o jogador e os dots
     glPopMatrix();        // Restaura o estado da transformação
 
     // Configura a projeção 2D para renderizar a UI
@@ -201,6 +203,7 @@ void display() {
     renderBatteryUI();
     renderSanityUI();
     renderHealthUI();
+    glFlush();  // Força a execução do desenho
     glPopMatrix(); // Restaura o estado de transformação
 
     glutSwapBuffers();
@@ -250,6 +253,7 @@ void keyboardDown(unsigned char key, int x, int y) {
         spawnPlayer();
         spawnDots();
         spawnBatteries();
+        generateExit();
     }  
     else if(key == 27) {
         exit(0);
@@ -276,6 +280,15 @@ void initOpenGL() {
     glClearColor(0.0, 0.0, 0.0, 1.0);
     initMaxFont("./fonts/Rexlia.ttf");  
     initMinFont("./fonts/Rexlia.ttf");
+
+    initMaze();
+    initializePlayer();
+    generateMaze(1, 1);
+    spawnPlayer();
+    spawnDots();
+    spawnBatteries();
+    generateExit();
+    startGameTimer();  // Inicia o tempo no começo do jogo
     
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -309,6 +322,11 @@ void update(int value) {
     movePlayer();            // Move o jogador de acordo com a direção e velocidade
     updateBattery();
     updatePlayerStatus();
+
+    if(goalDots == 0) {
+        updateGame();
+    }
+    
     glutPostRedisplay();
 
     // Define o próximo loop de atualização (geralmente 16ms para 60fps)
@@ -329,14 +347,7 @@ int main(int argc, char** argv) {
 
     // Funções de inicialização do OpenGL
     initOpenGL();
-    initMaze();
-    initializePlayer();
-    generateMaze(1, 1);
-    spawnPlayer();
-    spawnDots();
-    spawnBatteries();
 
-    startGameTimer();  // Inicia o tempo no começo do jogo
     glutTimerFunc(1000, updateGameTime, 0);  // Inicia o timer para atualizar o tempo a cada segundo
 
     // Registra as funções de callback

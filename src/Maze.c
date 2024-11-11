@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <math.h>
 
+#include "UI.h"
+
 #define M_PI 3.14159265358979323846
 
 // Função para inicializar o labirinto com paredes
@@ -64,6 +66,7 @@ void spawnDots() {
         dots[i].x = x;
         dots[i].y = y;
         dots[i].collected = false;
+        maze[x][y] = 2;
     }
 }
 
@@ -72,12 +75,13 @@ void spawnBatteries() {
     for (int i = 0; i < BATTERY_COUNT; i++) {
         int x, y;
         do {
-            x = rand() % (WIDTH - 2) + 1; // Evita as bordas
+            x = rand() % (WIDTH - 2) + 1; 
             y = rand() % (HEIGHT - 2) + 1;
-        } while (maze[x][y] != 0); // Garante que o dot não está em uma parede
+        } while (maze[x][y] != 0);
         batteries[i].x = x;
         batteries[i].y = y;
         batteries[i].collected = false;
+        maze[x][y] = 3;
     }
 }
 
@@ -93,7 +97,7 @@ void setMaterial(GLfloat ambient[4], GLfloat diffuse[4], GLfloat specular[4], GL
 void initializePlayer() {
     player.posX = 1.0f;            
     player.posY = 1.0f;            
-    player.speed = 0.7f;          
+    player.speed = 1.0f;          
     player.health = MAX_HEALTH;
     player.sanity = MAX_SANITY;
     player.radius = 0.3f;          
@@ -101,6 +105,14 @@ void initializePlayer() {
     player.moveDirY = 0.0f;        
     player.x = (int)floor(player.posX); 
     player.y = (int)floor(player.posY); 
+    player.level = 1;
+}
+
+void initializeExit() {
+    exitDoor.x = -1;
+    exitDoor.y = -1;
+    exitDoor.active = false; // A saída começa desativada
+    exitDoor.reached = false;
 }
 
 // Função para renderizar o labirinto em 3D usando materiais e iluminação
@@ -133,6 +145,11 @@ void renderMaze() {
     GLfloat groundDiffuse[] = { 0.2, 0.2, 0.2, 1.0 };  // Cor difusa do chão
     GLfloat groundSpecular[] = { 0.3, 0.3, 0.3, 1.0 }; // Reflexão especular (baixo brilho)
     GLfloat groundShininess = 10.0;  // Baixo brilho para simular um chão fosco
+
+    GLfloat exitAmbient[] = { 0.0, 1.0, 0.0, 1.0 }; // Verde
+    GLfloat exitDiffuse[] = { 0.0, 1.0, 0.0, 1.0 };
+    GLfloat exitSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
+    GLfloat exitShininess = 20.0;
 
     // Ativa a luz
     glLightfv(GL_LIGHT2, GL_POSITION, lightPosition);
@@ -186,6 +203,15 @@ void renderMaze() {
                 glTranslatef(x, -1.0f, y);
                 glutWireCube(1); // Desenha o contorno com um cubo de wireframe
                 glPopMatrix();
+
+                if (exitDoor.active) {
+                    setMaterial(exitAmbient, exitDiffuse, exitSpecular, exitShininess);
+
+                    glPushMatrix();
+                    glTranslatef(exitDoor.x, -1.0f, exitDoor.y); // Coloca a saída no chão
+                    glutSolidCube(1); // Desenha um cubo para representar a saída
+                    glPopMatrix();
+                }
             }
         }
     }
@@ -269,27 +295,28 @@ void renderPlayerAndObjects() {
 }
 
 // Função para verificar colisão com dots ou baterias
-bool checkObjectCollision(int playerX, int playerY) {
-    for (int i = 0; i < DOT_COUNT; i++) {
-        if (!dots[i].collected && playerX == dots[i].x && playerY == dots[i].y) {
-            dots[i].collected = true;
-            goalDots--;
-            if (goalDots == 0) {
-                printf("Parabéns! Você coletou todos os dots!\n");
-                initMaze();
-                generateMaze(1, 1);
-                spawnPlayer();
-                spawnDots();
-                spawnBatteries();
+bool checkObjectCollision() {
+    if (maze[player.x][player.y] == 2) {
+        for (int i = 0; i < DOT_COUNT; i++) {
+            if (!dots[i].collected && player.x == dots[i].x && player.y == dots[i].y) {
+                dots[i].collected = true;
+                goalDots--;
+                maze[player.x][player.y] = 0;
+                if (goalDots == 0) {
+                    printf("Você coletou todos os dots!\n");
+                }
             }
         }
     }
 
-    for (int i = 0; i < BATTERY_COUNT; i++) {
-        if (!batteries[i].collected && playerX == batteries[i].x && playerY == batteries[i].y) {
-            batteries[i].collected = true;
-            total_batteries--;
-            batteryPercentage += 20.0f;
+    if (maze[player.x][player.y] == 3) {
+            for (int i = 0; i < BATTERY_COUNT; i++) {
+            if (!batteries[i].collected && player.x == batteries[i].x && player.y == batteries[i].y) {
+                batteries[i].collected = true;
+                total_batteries--;
+                maze[player.x][player.y] = 0;
+                batteryPercentage += 20.0f;
+            }
         }
     }
     
@@ -346,4 +373,43 @@ void updatePlayerStatus() {
             player.health = 0.0f;
         }
     }
+}
+
+// Função para gerar a saída em uma posição aleatória
+void generateExit() {
+    int x, y;
+    do {
+        x = rand() % (WIDTH - 2) + 1;
+        y = rand() % (HEIGHT - 2) + 1;
+    } while (maze[x][y] == 1); // Garante que a saída não está em uma parede
+    
+    exitDoor.x = x;
+    exitDoor.y = y;
+    printf("Coordenadas da porta: %d, %d\n", exitDoor.x, exitDoor.y);
+}
+
+// Função principal de atualização
+void updateGame() {
+    if (goalDots == 0 && !exitDoor.active) {
+        exitDoor.active = true; // Cria a saída após coletar todos os dots
+    }
+
+    // Checa se o jogador chegou à saída
+    if (exitDoor.active && player.x == exitDoor.x && player.y == exitDoor.y) {
+        printf("Nível concluído! Indo para o próximo nível...\n");
+        player.level ++;
+        initMaze();
+        generateMaze(1, 1);
+        spawnPlayer();
+        spawnDots();
+        spawnBatteries();
+        initializeExit();
+        generateExit();
+    }
+}
+
+// Função para renderizar o labirinto e outros elementos
+void renderScene() {
+    renderMaze();
+    renderPlayerAndObjects();
 }
