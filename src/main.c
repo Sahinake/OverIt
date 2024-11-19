@@ -8,6 +8,8 @@
 #include "Maze.h"
 #include "UI.h"
 #include "Time.h"
+#include "miniaudio.h"
+#include "Sound.h"
 
 #define WIDTH 20                        // Largura do labirinto
 #define HEIGHT 20                       // Altura do labirinto
@@ -48,6 +50,15 @@ Dot dots[DOT_COUNT];
 Battery batteries[BATTERY_COUNT];
 Player player; 
 Exit exitDoor;
+
+ma_engine engine;
+ma_sound soundAmbient;
+ma_sound soundDotCollect;
+
+// Variável global para o volume (pode ser ajustada entre 0.0 e 1.0)
+float volumeEffects = 1.0f;
+
+bool isGamePaused = false;
 
 // Função para a câmera seguir o jogador
 void cameraFollowPlayer() {
@@ -331,6 +342,14 @@ void keyboardDown(unsigned char key, int x, int y) {
     else if(key == 27) {
         exit(0);
     } // ESC para sair
+
+    // Adiciona teclas para controle de volume
+    if (key == 'v') { // Aumentar volume dos efeitos
+        increaseEffectVolume();
+    }
+    else if (key == 'c') { // Diminuir volume dos efeitos
+        decreaseEffectVolume();
+    }
     
     glutPostRedisplay();
 }
@@ -359,6 +378,7 @@ void initOpenGL() {
     glClearColor(0.0, 0.0, 0.0, 1.0);
     initMaxFont("./fonts/Rexlia.ttf");  
     initMinFont("./fonts/Rexlia.ttf");
+    initAudio();
 
     initMaze();
     initializePlayer();
@@ -368,6 +388,7 @@ void initOpenGL() {
     spawnBatteries();
     generateExit();
     startGameTimer();  // Inicia o tempo no começo do jogo
+    playAmbientMusic();
     
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();

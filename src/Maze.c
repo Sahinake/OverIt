@@ -5,6 +5,8 @@
 #include <math.h>
 
 #include "UI.h"
+#include "Sound.h"
+#include "miniaudio.h"
 
 #define M_PI 3.14159265358979323846
 
@@ -313,6 +315,7 @@ bool checkObjectCollision() {
         for (int i = 0; i < DOT_COUNT; i++) {
             if (!dots[i].collected && player.x == dots[i].x && player.y == dots[i].y) {
                 dots[i].collected = true;
+                playDotCollectSound();
                 goalDots--;
                 maze[player.x][player.y] = 0;
                 if (goalDots == 0) {
