@@ -64,11 +64,11 @@ bool isGamePaused = false;
 void cameraFollowPlayer() {
     float camX = player.posX;      // Posicionar a câmera na mesma linha X do jogador
     float camY = 8.0f;         // Eleva a câmera para uma visão de cima (Y mais alto)
-    float camZ = player.posY - 5.0f; // Posicionar a câmera atrás do jogador no eixo Z
+    float camZ = player.posZ; // Posicionar a câmera atrás do jogador no eixo Z
 
     gluLookAt(camX, camY, camZ, // Posição da câmera
-              player.posX, 1.0f, player.posY, // Olhando para o jogador
-              0.0f, 1.0f, 0.0f);     // Up vector
+              player.posX, player.posY, player.posZ, // Olhando para o jogador
+              0.0f, 0.0f, -1.0f);     // Up vector
 }
 
 // Função para configurar a iluminação de forma mais flexível
@@ -164,12 +164,12 @@ bool checkCollision(float newX, float newZ) {
     //     return true; // Sem colisão
     // }
     // return false; // Fora dos limites
-    int gridX = (int)(newX + WIDTH / 2);  // Convertendo a posição X para índices da grid
-    int gridZ = (int)(newZ + HEIGHT / 2);  // Convertendo a posição Z para índices da grid
+    int gridX = (int)(newX);  // Convertendo a posição X para índices da grid
+    int gridZ = (int)(newZ);  // Convertendo a posição Z para índices da grid
 
     // Verifica se a nova posição está dentro dos limites da grid e se há um cubo branco
     if (gridX >= 0 && gridX < WIDTH && gridZ >= 0 && gridZ < HEIGHT) {
-        if (maze[gridZ][gridX] == 1) {  // Se houver um cubo na posição
+        if (maze[gridX][gridZ] == 1) {  // Se houver um cubo na posição
             return true;  // Há uma colisão
         }
     }
@@ -390,10 +390,17 @@ void initOpenGL() {
     startGameTimer();  // Inicia o tempo no começo do jogo
     playAmbientMusic();
     
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
+    
+    
     gluPerspective(45.0f, 1.0f, 0.1f, 100.0f);
     glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    gluLookAt(0.8, 0.5, 0.5,    // Posição da câmera
+              0.0, 0.0, 0.0,    // Para onde a câmera aponta
+              0.0, 1.0, 0.0);   // Vetor view-up
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(-2.0, 2.0, -2.0, 2.0, -2.0, 2.0);
 }
 
 // Função para lidar com o redimensionamento da janela

@@ -175,13 +175,14 @@ void renderMaze() {
     // Configura a espessura do contorno
     glLineWidth(5.0f); // Aumenta a espessura do contorno (ajuste conforme necessário)
 
-    for (int z = 0; z < HEIGHT; ++z) {
-        for (int x = 0; x < WIDTH; ++x) {
-            if (maze[z][x] == 1) {  // Desenhar paredes
+    
+    for (int x = 0; x < WIDTH; ++x) {
+        for (int z = 0; z < HEIGHT; ++z) {
+            if (maze[x][z] == 1) {  // Desenhar paredes
                 // Primeiro, desenha o preenchimento preto
                 setMaterial(fillAmbient, fillDiffuse, fillSpecular, fillShininess);
                 glPushMatrix();
-                glTranslatef(x - HEIGHT / 2, 0.0f, z - HEIGHT / 2);  // Movimenta o cubo para a posição correta
+                glTranslatef(x, 0.0f, z);  // Movimenta o cubo para a posição correta
                 glutSolidCube(1);  // Renderiza um cubo com o tamanho de 1 unidade
                 glPopMatrix();
             }
