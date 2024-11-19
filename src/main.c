@@ -85,7 +85,7 @@ void setLighting(float lightPos[4], float lightDir[3], float ambient[4], float d
 // Função para a iluminação dinâmica durante o jogo
 void updateLighting() {
     // A posição da luz será sempre a posição do jogador, para simular uma lanterna
-    GLfloat lightPos[] = { (float)player.posX, 1.0f, (float)player.posY, 1.0f };
+    GLfloat lightPos[] = { (float)player.posX, 1.0f, (float)player.posZ, 1.0f };
 
     // A direção da luz será ajustada com base no movimento do jogador
     GLfloat lightDir[] = { lightDirX, -0.5f, lightDirZ }; // Um pequeno ajuste na direção da luz para simular uma lanterna
