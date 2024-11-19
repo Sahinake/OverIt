@@ -27,12 +27,13 @@ extern float batteryPercentage;
 
 // Estrutura para o jogador
 typedef struct {
-    float posX, posY;           // Posição do jogador
+    float posX, posY, posZ;     // Posição do jogador
+    float targetX, targetZ;     // Posições de destino para o movimento suave
+    float speedX, speedZ;       // Velocidade de movimento
     float health;               // Vida máxima do jogador
     float sanity;               // Sanidade máxima do jogador
-    float speed;                // Velocidade de movimento do jogador
     float radius;               // Raio de colisão do jogador
-    float moveDirX, moveDirY;   // Direção de movimento
+    int moving;                 // Flag para indicar se o jogador está se movendo
     int flashlight;             // Lanterna ligada = 1, desligada = 0
     int x, y;                   // Posições inteiras (usadas para labirinto)
     int level;

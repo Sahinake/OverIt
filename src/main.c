@@ -118,66 +118,100 @@ void updateLighting() {
 }
 
 // Função para verificar a colisão com as paredes considerando o raio da esfera
-bool checkCollision(float newX, float newY) {
-    // Verifica se a nova posição está dentro dos limites da área de jogo
-    if (newX > 0 && newX < WIDTH && newY > 0 && newY < HEIGHT) {
-        // Define as coordenadas das bordas da esfera com base no raio
-        int minX = (int)(newX - player.radius);
-        int maxX = (int)(newX + player.radius);
-        int minY = (int)(newY - player.radius);
-        int maxY = (int)(newY + player.radius);
+bool checkCollision(float newX, float newZ) {
+    // // Verifica se a nova posição está dentro dos limites da área de jogo
+    // if (newX > 0 && newX < WIDTH && newZ > 0 && newZ < HEIGHT) {
+    //     // Define as coordenadas das bordas da esfera com base no raio
+    //     int minX = (int)(newX - player.radius);
+    //     int maxX = (int)(newX + player.radius);
+    //     int minZ = (int)(newZ - player.radius);
+    //     int maxZ = (int)(newZ + player.radius);
 
-        // Verifica se qualquer parte da esfera colide com uma parede
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                // Verifica se (x, y) está dentro dos limites do labirinto
-                if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) {
-                    // Verifica se há uma parede na posição (x, y)
-                    if (maze[x][y] == 1) {
-                        float wallCenterX = x + 0.5;
-                        float wallCenterY = y + 0.5;
+    //     // Verifica se qualquer parte da esfera colide com uma parede
+    //     for (int x = minX; x <= maxX; x++) {
+    //         for (int z = minZ; z <= maxZ; z++) {
+    //             // Verifica se (x, z) está dentro dos limites do labirinto
+    //             if (x >= 0 && x < WIDTH && z >= 0 && z < HEIGHT) {
+    //                 // Verifica se há uma parede na posição (x, z)
+    //                 if (maze[x][z] == 1) {
+    //                     float wallCenterX = x + 0.5;
+    //                     float wallCenterZ = z + 0.5;
 
-                        // Calcula a distância entre o centro da esfera e o centro da parede
-                        float distX = newX - wallCenterX;
-                        float distY = newY - wallCenterY;
-                        float distance = sqrt(distX * distX + distY * distY);
+    //                     // Calcula a distância entre o centro da esfera e o centro da parede
+    //                     float distX = newX - wallCenterX;
+    //                     float distZ = newZ - wallCenterZ;
+    //                     float distance = sqrt(distX * distX + distZ * distZ);
 
-                        // Se a distância for menor que o raio, houve colisão
-                        if (distance < player.radius) {
-                            return false; // Colisão detectada
-                        }
-                    }
-                }
-            }
+    //                     // Se a distância for menor que o raio, houve colisão
+    //                     if (distance < player.radius) {
+    //                         return false; // Colisão detectada
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     return true; // Sem colisão
+    // }
+    // return false; // Fora dos limites
+    int gridX = (int)(newX + WIDTH / 2);  // Convertendo a posição X para índices da grid
+    int gridZ = (int)(newZ + HEIGHT / 2);  // Convertendo a posição Z para índices da grid
+
+    // Verifica se a nova posição está dentro dos limites da grid e se há um cubo branco
+    if (gridX >= 0 && gridX < WIDTH && gridZ >= 0 && gridZ < HEIGHT) {
+        if (maze[gridZ][gridX] == 1) {  // Se houver um cubo na posição
+            return true;  // Há uma colisão
         }
-        return true; // Sem colisão
     }
-    return false; // Fora dos limites
+    return false; // Sem colisão
 }
 
 
 // Função para mover o jogador gradualmente em direção à direção definida
 void movePlayer() {
-    // Calcula a nova posição baseada na velocidade e direção
-    float newX = player.posX + player.moveDirX * player.speed;
-    float newY = player.posY + player.moveDirY * player.speed;
+    // // Calcula a nova posição baseada na velocidade e direção
+    // float newX = player.posX + player.moveDirX * player.speed;
+    // float newY = player.posY + player.moveDirY * player.speed;
 
-    if(newX > 0 && newX < WIDTH && newY > 0 && newY < HEIGHT) {
-        if(maze[(int)floor(newX)][(int)floor(newY)] != 1) {
-            // Verifica colisão com as paredes
-            if (checkCollision(newX, newY)) {
-                player.posX = newX;
-                player.posY = newY;
-                player.x = (int)(player.posX);
-                player.y = (int)(player.posY);
+    // if(newX > 0 && newX < WIDTH && newY > 0 && newY < HEIGHT) {
+    //     if(maze[(int)floor(newX)][(int)floor(newY)] != 1) {
+    //         // Verifica colisão com as paredes
+    //         if (checkCollision(newX, newY)) {
+    //             player.posX = newX;
+    //             player.posY = newY;
+    //             player.x = (int)(player.posX);
+    //             player.y = (int)(player.posY);
                 
-                if(maze[player.x][player.y] == 2 || maze[player.x][player.y] == 3) {
-                    // Verifica colisão com objetos (se houver)
-                    checkObjectCollision();
-                }
+    //             if(maze[player.x][player.y] == 2 || maze[player.x][player.y] == 3) {
+    //                 // Verifica colisão com objetos (se houver)
+    //                 checkObjectCollision();
+    //             }
+    //         }
+    //     }
+    // }
+    if (player.moving) {
+        if (player.posX != player.targetX) {
+            player.posX += player.speedX;
+            if ((player.speedX > 0 && player.posX >= player.targetX) || (player.speedX < 0 && player.posX <= player.targetX)) {
+                player.posX = player.targetX;  // Chegou ao destino
+                player.speedX = 0.0f;  // Parar movimento no eixo X
             }
         }
+
+        if (player.posZ != player.targetZ) {
+            player.posZ += player.speedZ;
+            if ((player.speedZ > 0 && player.posZ >= player.targetZ) || (player.speedZ < 0 && player.posZ <= player.targetZ)) {
+                player.posZ = player.targetZ;  // Chegou ao destino
+                player.speedZ = 0.0f;  // Parar movimento no eixo Z
+            }
+        }
+
+        if (player.speedX == 0.0f && player.speedZ == 0.0f) {
+            player.moving = 0;  // Interrompe o movimento quando ambos os eixos atingem o destino
+        }
     }
+
+    glutPostRedisplay();
+    // glutTimerFunc(16, movePlayer, 0);  // Chama a função novamente após 16ms (aproximadamente 60 FPS)
 }
 
 // Função para renderizar a cena
@@ -212,29 +246,64 @@ void display() {
 
 // Função para capturar o pressionamento do teclado e definir a direção de movimento
 void keyboardDown(unsigned char key, int x, int y) {
-    if(key == 's' || key == 'S') {
-        player.moveDirX = 0.0f; 
-        player.moveDirY = -0.1f; 
-        lightDirX = 0.0f; 
-        lightDirZ = -1.0f;
+    // if(key == 's' || key == 'S') {
+    //     player.moveDirX = 0.0f; 
+    //     player.moveDirY = -0.1f; 
+    //     lightDirX = 0.0f; 
+    //     lightDirZ = -1.0f;
+    // }
+    // else if(key == 'w' || key == 'W') {
+    //     player.moveDirX = 0.0f; 
+    //     player.moveDirY = 0.1f;
+    //     lightDirX = 0.0f; 
+    //     lightDirZ = 1.0f;
+    // }
+    // else if(key == 'a' || key == 'A') {
+    //     player.moveDirX = 0.1f; 
+    //     player.moveDirY = 0.0f;
+    //     lightDirX = 1.0f; 
+    //     lightDirZ = 0.0f; 
+    // }
+    // else if(key == 'd' || key == 'D') {
+    //     player.moveDirX = -0.1f; 
+    //     player.moveDirY = 0.0f;
+    //     lightDirX = -1.0f; 
+    //     lightDirZ = 0.0f; 
+    // }
+    float moveSpeed = 0.1f;  // Velocidade de movimento por delta de tempo (por segundo)
+    float posX = player.posX;
+    float posZ = player.posZ;
+    if (key == 'w' && !player.moving) {  // Move para frente (no eixo Z)
+        posZ = player.posZ - 1.0f;
+        if (!checkCollision(posX,posZ)){
+            player.targetZ = posZ;
+            player.speedZ = -moveSpeed;
+            player.moving = 1;
+        }
     }
-    else if(key == 'w' || key == 'W') {
-        player.moveDirX = 0.0f; 
-        player.moveDirY = 0.1f;
-        lightDirX = 0.0f; 
-        lightDirZ = 1.0f;
+    else if (key == 's' && !player.moving) {  // Move para trás (no eixo Z)
+        posZ = player.posZ + 1.0f;
+        if (!checkCollision(posX,posZ)){
+            player.targetZ = posZ;
+            player.speedZ = moveSpeed;
+            player.moving = 1;
+        }
     }
-    else if(key == 'a' || key == 'A') {
-        player.moveDirX = 0.1f; 
-        player.moveDirY = 0.0f;
-        lightDirX = 1.0f; 
-        lightDirZ = 0.0f; 
+    else if (key == 'a' && !player.moving) {  // Move para a esquerda (no eixo X)
+        posX = player.posX - 1.0f;
+        if (!checkCollision(posX,posZ)){
+            player.targetX = posX;
+            player.speedX = -moveSpeed;
+            player.moving = 1;
+        }
     }
-    else if(key == 'd' || key == 'D') {
-        player.moveDirX = -0.1f; 
-        player.moveDirY = 0.0f;
-        lightDirX = -1.0f; 
-        lightDirZ = 0.0f; 
+    else if (key == 'd' && !player.moving) {  // Move para a direita (no eixo X)
+        posX = player.posX + 1.0f;
+        if (!checkCollision(posX,posZ)){
+            player.targetX = posX;
+            player.speedX = moveSpeed;
+            player.moving = 1;
+        }
     }
     else if (key == 'f' || key == 'F') {
         player.flashlight = player.flashlight == 1 ? 0 : 1;
@@ -268,16 +337,16 @@ void keyboardDown(unsigned char key, int x, int y) {
 
 // Função para capturar o evento de soltar a tecla e zerar a direção de movimento
 void keyboardUp(unsigned char key, int x, int y) {
-    switch (key) {
-        case 's': player.moveDirY = 0.0f; break;
-        case 'w': player.moveDirY = 0.0f; break;
-        case 'd': player.moveDirX = 0.0f; break;
-        case 'a': player.moveDirX = 0.0f; break;
-        case 'S': player.moveDirY = 0.0f; break;
-        case 'W': player.moveDirY = 0.0f; break;
-        case 'D': player.moveDirX = 0.0f; break;
-        case 'A': player.moveDirX = 0.0f; break;
-    }
+    // switch (key) {
+    //     case 's': player.moveDirY = 0.0f; break;
+    //     case 'w': player.moveDirY = 0.0f; break;
+    //     case 'd': player.moveDirX = 0.0f; break;
+    //     case 'a': player.moveDirX = 0.0f; break;
+    //     case 'S': player.moveDirY = 0.0f; break;
+    //     case 'W': player.moveDirY = 0.0f; break;
+    //     case 'D': player.moveDirX = 0.0f; break;
+    //     case 'A': player.moveDirX = 0.0f; break;
+    // }
     glutPostRedisplay();
 }
 

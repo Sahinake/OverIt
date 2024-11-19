@@ -50,7 +50,7 @@ void spawnPlayer() {
     player.x = 1;
     player.y = 1;
     player.posX = (float)1;
-    player.posY = (float)1;
+    player.posY = (float)0;
     maze[player.x][player.y] = 0; // Certifica que o ponto inicial está vazio
 }
 
@@ -96,13 +96,13 @@ void setMaterial(GLfloat ambient[4], GLfloat diffuse[4], GLfloat specular[4], GL
 // Função para inicializar o jogador
 void initializePlayer() {
     player.posX = 1.0f;            
-    player.posY = 1.0f;            
-    player.speed = 1.0f;          
+    player.posY = 0.0f;            
+    // player.speed = 1.0f;          
     player.health = MAX_HEALTH;
     player.sanity = MAX_SANITY;
     player.radius = 0.3f;          
-    player.moveDirX = 0.0f;        
-    player.moveDirY = 0.0f;        
+    // player.moveDirX = 0.0f;        
+    // player.moveDirY = 0.0f;        
     player.x = (int)floor(player.posX); 
     player.y = (int)floor(player.posY); 
     player.level = 1;
@@ -173,49 +173,61 @@ void renderMaze() {
     // Configura a espessura do contorno
     glLineWidth(5.0f); // Aumenta a espessura do contorno (ajuste conforme necessário)
 
-    for (int x = 0; x < WIDTH; x++) {
-        for (int y = 0; y < HEIGHT; y++) {
-            if (maze[x][y] == 1) { // Desenhar paredes
+    for (int z = 0; z < HEIGHT; ++z) {
+        for (int x = 0; x < WIDTH; ++x) {
+            if (maze[z][x] == 1) {  // Desenhar paredes
                 // Primeiro, desenha o preenchimento preto
                 setMaterial(fillAmbient, fillDiffuse, fillSpecular, fillShininess);
                 glPushMatrix();
-                glTranslatef(x, 0, y);
-                glutSolidCube(1); // Preenche o interior com um cubo sólido
+                glTranslatef(x - HEIGHT / 2, 0.0f, z - HEIGHT / 2);  // Movimenta o cubo para a posição correta
+                glutSolidCube(1);  // Renderiza um cubo com o tamanho de 1 unidade
                 glPopMatrix();
-
-                // Agora, desenha o contorno azul com iluminação
-                setMaterial(contourAmbient, contourDiffuse, contourSpecular, contourShininess);
-                glPushMatrix();
-                glTranslatef(x, 0, y);
-                glutWireCube(1); // Desenha o contorno com um cubo de wireframe
-                glPopMatrix();
-            }
-            else { // Desenhar o chão
-                // Aplicar o material do chão
-                setMaterial(groundAmbient, groundDiffuse, groundSpecular, groundShininess);
-                glPushMatrix();
-                glTranslatef(x, -1.0f, y); // Coloca o chão abaixo das paredes
-                glutSolidCube(1); // Desenha o cubo para o chão
-                glPopMatrix();
-
-                // Agora, desenha o contorno azul com iluminação
-                setMaterial(contourGroundAmbient, contourGroundDiffuse, contourGroundSpecular, contourShininess);
-                glPushMatrix();
-                glTranslatef(x, -1.0f, y);
-                glutWireCube(1); // Desenha o contorno com um cubo de wireframe
-                glPopMatrix();
-
-                if (exitDoor.active) {
-                    setMaterial(exitAmbient, exitDiffuse, exitSpecular, exitShininess);
-
-                    glPushMatrix();
-                    glTranslatef(exitDoor.x, -1.0f, exitDoor.y); // Coloca a saída no chão
-                    glutSolidCube(1); // Desenha um cubo para representar a saída
-                    glPopMatrix();
-                }
             }
         }
     }
+    // for (int x = 0; x < WIDTH; x++) {
+    //     for (int y = 0; y < HEIGHT; y++) {
+    //         if (maze[x][y] == 1) { // Desenhar paredes
+    //             // Primeiro, desenha o preenchimento preto
+    //             setMaterial(fillAmbient, fillDiffuse, fillSpecular, fillShininess);
+    //             glPushMatrix();
+    //             glTranslatef(x, 0, y);
+    //             glutSolidCube(1); // Preenche o interior com um cubo sólido
+    //             glPopMatrix();
+
+    //             // Agora, desenha o contorno azul com iluminação
+    //             setMaterial(contourAmbient, contourDiffuse, contourSpecular, contourShininess);
+    //             glPushMatrix();
+    //             glTranslatef(x, 0, y);
+    //             glutWireCube(1); // Desenha o contorno com um cubo de wireframe
+    //             glPopMatrix();
+    //         }
+    //         else { // Desenhar o chão
+    //             // Aplicar o material do chão
+    //             setMaterial(groundAmbient, groundDiffuse, groundSpecular, groundShininess);
+    //             glPushMatrix();
+    //             glTranslatef(x, -1.0f, y); // Coloca o chão abaixo das paredes
+    //             glutSolidCube(1); // Desenha o cubo para o chão
+    //             glPopMatrix();
+
+    //             // Agora, desenha o contorno azul com iluminação
+    //             setMaterial(contourGroundAmbient, contourGroundDiffuse, contourGroundSpecular, contourShininess);
+    //             glPushMatrix();
+    //             glTranslatef(x, -1.0f, y);
+    //             glutWireCube(1); // Desenha o contorno com um cubo de wireframe
+    //             glPopMatrix();
+
+    //             if (exitDoor.active) {
+    //                 setMaterial(exitAmbient, exitDiffuse, exitSpecular, exitShininess);
+
+    //                 glPushMatrix();
+    //                 glTranslatef(exitDoor.x, -1.0f, exitDoor.y); // Coloca a saída no chão
+    //                 glutSolidCube(1); // Desenha um cubo para representar a saída
+    //                 glPopMatrix();
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 bool isObjectVisible(int objX, int objY) {
@@ -256,7 +268,7 @@ void renderPlayerAndObjects() {
     // Renderiza o jogador
     setMaterial(playerAmbient, playerDiffuse, playerSpecular, playerShininess);
     glPushMatrix();
-    glTranslatef(player.posX, 0, player.posY);
+    glTranslatef(player.posX, player.posY, player.posZ);
     glutSolidSphere(player.radius, 20, 20); // Usa uma esfera para o jogador
     glPopMatrix();
 
