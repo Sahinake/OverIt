@@ -10,6 +10,7 @@
         "freeglut.h": "c",
         "time.h": "c",
         "ui.h": "c",
-        "ftgl.h": "c"
+        "ftgl.h": "c",
+        "sound.h": "c"
     }
 }
