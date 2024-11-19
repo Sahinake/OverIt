@@ -188,6 +188,8 @@ bool checkCollision(float newX, float newZ) {
         if (maze[gridX][gridZ] == 1) {  // Se houver um cubo na posição
             return true;  // Há uma colisão
         }
+    } else {
+        return true; // Fora dos limites do mapa
     }
     return false; // Sem colisão
 }
