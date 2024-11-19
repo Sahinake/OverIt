@@ -1,15 +1,19 @@
+#include <FTGL/ftgl.h>
 #include <GL/glut.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <stdbool.h>
 #include <math.h>
+#include <string.h>
 
 #include "Maze.h"
 #include "UI.h"
 #include "Time.h"
 #include "miniaudio.h"
 #include "Sound.h"
+#include "stb_image.h"
+#include "textureloader.h"
 
 #define WIDTH 20                        // Largura do labirinto
 #define HEIGHT 20                       // Altura do labirinto
@@ -19,10 +23,12 @@
 #define MAX_BATTERY 70.0f               // Capacidade máxima da lanterna
 #define MAX_HEALTH 100.0f               // Capacidade máxima da vida
 #define MAX_SANITY 100.0f               // Capacidade máxima da sanidade
-#define BATTERY_DECREASE_RATE 0.005f     // Taxa de diminuição da bateria por atualização de frame
+#define BATTERY_DECREASE_RATE 0.005f    // Taxa de diminuição da bateria por atualização de frame
 #define HEALTH_DECREASE_RATE 0.02f      // Taxa de diminuição da bateria por atualização de frame
 #define SANITY_DECREASE_RATE 0.02f      // Taxa de diminuição da bateria por atualização de frame
+#define NUM_MENU_OPTIONS 5              // Opções do Menu
 #define M_PI 3.14159265358979323846
+#define STB_IMAGE_IMPLEMENTATION
 
 int maze[WIDTH][HEIGHT];
 int maze_widht = WIDTH, maze_height = HEIGHT;
@@ -44,6 +50,7 @@ time_t startTime;
 time_t currentTime;
 int elapsedTime;
 int max_font_height = 35;
+int med_font_height = 20;
 int min_font_height = 14;
 
 Dot dots[DOT_COUNT];
@@ -57,18 +64,27 @@ ma_sound soundDotCollect;
 
 // Variável global para o volume (pode ser ajustada entre 0.0 e 1.0)
 float volumeEffects = 1.0f;
+GLuint backgroundTexture;
 
 bool isGamePaused = false;
+
+// Instância global do jogo
+Game game;
+
+// Declaração dos ponteiros para as fontes
+FTGLfont *maxFont;
+FTGLfont *medFont;
+FTGLfont *minFont;
 
 // Função para a câmera seguir o jogador
 void cameraFollowPlayer() {
     float camX = player.posX;      // Posicionar a câmera na mesma linha X do jogador
     float camY = 8.0f;         // Eleva a câmera para uma visão de cima (Y mais alto)
-    float camZ = player.posZ; // Posicionar a câmera atrás do jogador no eixo Z
+    float camZ = player.posZ - 5.0f; // Posicionar a câmera atrás do jogador no eixo Z
 
     gluLookAt(camX, camY, camZ, // Posição da câmera
               player.posX, player.posY, player.posZ, // Olhando para o jogador
-              0.0f, 0.0f, -1.0f);     // Up vector
+              0.0f, 0.0f, 1.0f);     // Up vector
 }
 
 // Função para configurar a iluminação de forma mais flexível
@@ -205,6 +221,7 @@ void movePlayer() {
             if ((player.speedX > 0 && player.posX >= player.targetX) || (player.speedX < 0 && player.posX <= player.targetX)) {
                 player.posX = player.targetX;  // Chegou ao destino
                 player.speedX = 0.0f;  // Parar movimento no eixo X
+                player.x = (int)(player.posX);
             }
         }
 
@@ -213,12 +230,18 @@ void movePlayer() {
             if ((player.speedZ > 0 && player.posZ >= player.targetZ) || (player.speedZ < 0 && player.posZ <= player.targetZ)) {
                 player.posZ = player.targetZ;  // Chegou ao destino
                 player.speedZ = 0.0f;  // Parar movimento no eixo Z
+                player.y = (int)(player.posZ);
             }
         }
 
         if (player.speedX == 0.0f && player.speedZ == 0.0f) {
             player.moving = 0;  // Interrompe o movimento quando ambos os eixos atingem o destino
         }
+
+        if(maze[player.x][player.y] == 2 || maze[player.x][player.y] == 3) {
+            checkObjectCollision();
+        }
+
     }
 
     glutPostRedisplay();
@@ -227,32 +250,91 @@ void movePlayer() {
 
 // Função para renderizar a cena
 void display() {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    glLoadIdentity();
+    if(game.currentState == MAIN_MENU) {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glLoadIdentity();
+        setup2DProjection();
+        glPushMatrix(); // Salva o estado atual da transformação
+        drawMainMenu();
+        glFlush();  // Força a execução do desenho
+        glPopMatrix(); // Restaura o estado de transformação
+    }
+    else if(game.currentState == PLAYING) {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Configura a projeção 3D para renderizar o jogo
-    setup3DProjection();  // Configura a projeção 3D para o jogo
-    glPushMatrix();       // Salva o estado da transformação atual
-    cameraFollowPlayer(); // Move a câmera para seguir o jogador
-    updateLighting();     // Atualiza a iluminação de acordo com o jogador
-    renderScene();        // Renderiza o jogador e os dots
-    glPopMatrix();        // Restaura o estado da transformação
+        // Configura a projeção 3D para renderizar o jogo
+        setup3DProjection();  // Configura a projeção 3D para o jogo
+        glPushMatrix();       // Salva o estado da transformação atual
+        cameraFollowPlayer(); // Move a câmera para seguir o jogador
+        updateLighting();     // Atualiza a iluminação de acordo com o jogador
+        renderScene();        // Renderiza o jogador e os dots
+        glPopMatrix();        // Restaura o estado da transformação
 
-    // Configura a projeção 2D para renderizar a UI
-    setup2DProjection();
-    glPushMatrix(); // Salva o estado atual da transformação
-    renderDotCount(); // Renderiza o contador de dots
-    renderGameTime();  // Renderiza o tempo de jogo
-    renderLevel();
-    renderBatteryUI();
-    renderSanityUI();
-    renderHealthUI();
-    glFlush();  // Força a execução do desenho
-    glPopMatrix(); // Restaura o estado de transformação
+        // Configura a projeção 2D para renderizar a UI
+        setup2DProjection();
+        glPushMatrix(); // Salva o estado atual da transformação
+        renderDotCount(); // Renderiza o contador de dots
+        renderGameTime();  // Renderiza o tempo de jogo
+        renderLevel();
+        renderBatteryUI();
+        renderSanityUI();
+        renderHealthUI();
+        glFlush();  // Força a execução do desenho
+        glPopMatrix(); // Restaura o estado de transformação
+
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        gluPerspective(45.0f, 1.0f, 0.1f, 100.0f);
+        glMatrixMode(GL_MODELVIEW);
+    }
 
     glutSwapBuffers();
+    glFlush();
+}
+
+// Configurações de inicialização do OpenGL para 3D
+void initPlaying() {
+    if (game.currentState == PLAYING) {
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+        glEnable(GL_LIGHTING); // Ativa a iluminação
+        glEnable(GL_LIGHT0);    // Ativa a luz 0
+        initMaze();
+        initializePlayer();
+        generateMaze(1, 1);
+        spawnPlayer();
+        spawnDots();
+        spawnBatteries();
+        generateExit();
+        startGameTimer();  // Inicia o tempo no começo do jogo
+        playAmbientMusic();
+    }
+}
+
+// Função para desenhar a tela dependendo do estado atual
+void drawScene() {
+    switch (game.currentState) {
+        case MAIN_MENU:
+            drawMainMenu();
+            break;
+        case NEW_GAME_MENU:
+            drawNewGameMenu();
+            break;
+        case LOAD_GAME_MENU:
+            drawLoadGameMenu();
+            break;
+        case RANKING_MENU:
+            drawRankingMenu();
+            break;
+        case OPTIONS_MENU:
+            drawOptionsMenu();
+            break;
+        case PLAYING:
+            initPlaying();
+            break;
+        default:
+            break;
+    }
 }
 
 // Função para capturar o pressionamento do teclado e definir a direção de movimento
@@ -284,37 +366,45 @@ void keyboardDown(unsigned char key, int x, int y) {
     float moveSpeed = 0.1f;  // Velocidade de movimento por delta de tempo (por segundo)
     float posX = player.posX;
     float posZ = player.posZ;
-    if (key == 'w' && !player.moving) {  // Move para frente (no eixo Z)
+    if ((key == 'w' || key == 'W') && !player.moving) {  // Move para frente (no eixo Z)
+        posZ = player.posZ + 1.0f;
+        if (!checkCollision(posX,posZ)){
+            player.targetZ = posZ;
+            player.speedZ = +moveSpeed;
+            player.moving = 1;
+        }
+        lightDirX = 0.0f; 
+        lightDirZ = 1.0f;
+    }
+    else if ((key == 's' || key == 'S') && !player.moving) {  // Move para trás (no eixo Z)
         posZ = player.posZ - 1.0f;
         if (!checkCollision(posX,posZ)){
             player.targetZ = posZ;
             player.speedZ = -moveSpeed;
             player.moving = 1;
         }
+        lightDirX = 0.0f; 
+        lightDirZ = -1.0f;
     }
-    else if (key == 's' && !player.moving) {  // Move para trás (no eixo Z)
-        posZ = player.posZ + 1.0f;
+    else if ((key == 'a' || key == 'A') && !player.moving) {  // Move para a esquerda (no eixo X)
+        posX = player.posX + 1.0f;
         if (!checkCollision(posX,posZ)){
-            player.targetZ = posZ;
-            player.speedZ = moveSpeed;
+            player.targetX = posX;
+            player.speedX = +moveSpeed;
             player.moving = 1;
         }
+        lightDirX = +1.0f; 
+        lightDirZ = 0.0f;
     }
-    else if (key == 'a' && !player.moving) {  // Move para a esquerda (no eixo X)
+    else if ((key == 'd' || key == 'D') && !player.moving) {  // Move para a direita (no eixo X)
         posX = player.posX - 1.0f;
         if (!checkCollision(posX,posZ)){
             player.targetX = posX;
             player.speedX = -moveSpeed;
             player.moving = 1;
         }
-    }
-    else if (key == 'd' && !player.moving) {  // Move para a direita (no eixo X)
-        posX = player.posX + 1.0f;
-        if (!checkCollision(posX,posZ)){
-            player.targetX = posX;
-            player.speedX = moveSpeed;
-            player.moving = 1;
-        }
+        lightDirX = -1.0f; 
+        lightDirZ = 0.0f; 
     }
     else if (key == 'f' || key == 'F') {
         player.flashlight = player.flashlight == 1 ? 0 : 1;
@@ -340,7 +430,31 @@ void keyboardDown(unsigned char key, int x, int y) {
         generateExit();
     }  
     else if(key == 27) {
-        exit(0);
+        switch (game.currentState) {
+            case MAIN_MENU:
+                exit(0);
+                break;
+            case NEW_GAME_MENU:
+                game.currentState = MAIN_MENU;
+                game.selectedOption = 0;
+                break;
+            case LOAD_GAME_MENU:
+                game.currentState = MAIN_MENU;
+                game.selectedOption = 1;
+                break;
+            case RANKING_MENU:
+                game.currentState = MAIN_MENU;
+                game.selectedOption = 2;
+                break;
+            case OPTIONS_MENU:
+                game.currentState = MAIN_MENU;
+                game.selectedOption = 3;
+                break;
+            case PLAYING:
+                break;
+            default:
+                break;
+        }
     } // ESC para sair
 
     // Adiciona teclas para controle de volume
@@ -349,6 +463,65 @@ void keyboardDown(unsigned char key, int x, int y) {
     }
     else if (key == 'c') { // Diminuir volume dos efeitos
         decreaseEffectVolume();
+    }
+
+    if (key == 13) {  // Tecla Enter
+        switch (game.currentState) {
+            case MAIN_MENU:
+                if (game.selectedOption == 0) {
+                    game.currentState = NEW_GAME_MENU;
+                    game.selectedOption = 0;
+                } else if (game.selectedOption == 1) {
+                    game.currentState = LOAD_GAME_MENU;
+                    game.selectedOption = 0;
+                } else if (game.selectedOption == 2) {
+                    game.currentState = RANKING_MENU;
+                    game.selectedOption = 0;
+                } else if (game.selectedOption == 3) {
+                    game.currentState = OPTIONS_MENU;
+                    game.selectedOption = 0;
+                } else if (game.selectedOption == 4) {
+                    exit(0);  // Sair do jogo
+                }
+                break;
+            case NEW_GAME_MENU:
+                if (game.selectedOption == 0) {
+                    game.currentState = PLAYING;  // Começar o jogo
+                } else {
+                    game.currentState = MAIN_MENU;
+                    game.selectedOption = 0;
+                }
+                break;
+            case LOAD_GAME_MENU:
+                if (game.selectedOption == 0) {
+                    // Lógica para carregar o jogo
+                } else {
+                    game.currentState = MAIN_MENU;
+                    game.selectedOption = 1;
+                }
+                break;
+            case RANKING_MENU:
+                if (game.selectedOption == 0) {
+                    // Lógica para carregar o jogo
+                } else {
+                    game.currentState = MAIN_MENU;
+                    game.selectedOption = 2;
+                }
+            case OPTIONS_MENU:
+                if (game.selectedOption == 0) {
+                    // Lógica para carregar o jogo
+                } else {
+                    game.currentState = MAIN_MENU;
+                    game.selectedOption = 3;
+                }
+                break;
+            case PLAYING:
+                break;
+            default:
+                break;
+        }
+
+        drawScene();
     }
     
     glutPostRedisplay();
@@ -369,38 +542,48 @@ void keyboardUp(unsigned char key, int x, int y) {
     glutPostRedisplay();
 }
 
-// Configurações de inicialização do OpenGL para 3D
-void initOpenGL() {
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_LIGHTING); // Ativa a iluminação
-    glEnable(GL_LIGHT0);    // Ativa a luz 0
-
-    glClearColor(0.0, 0.0, 0.0, 1.0);
-    initMaxFont("./fonts/Rexlia.ttf");  
-    initMinFont("./fonts/Rexlia.ttf");
-    initAudio();
-
-    initMaze();
-    initializePlayer();
-    generateMaze(1, 1);
-    spawnPlayer();
-    spawnDots();
-    spawnBatteries();
-    generateExit();
-    startGameTimer();  // Inicia o tempo no começo do jogo
-    playAmbientMusic();
-    
-    
-    
-    gluPerspective(45.0f, 1.0f, 0.1f, 100.0f);
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    gluLookAt(0.8, 0.5, 0.5,    // Posição da câmera
-              0.0, 0.0, 0.0,    // Para onde a câmera aponta
-              0.0, 1.0, 0.0);   // Vetor view-up
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(-2.0, 2.0, -2.0, 2.0, -2.0, 2.0);
+// Função para navegar entre os menus com as teclas de seta
+void keyboardNavigation(int key, int x, int y) {
+    if(game.currentState == MAIN_MENU) {
+        if (key == GLUT_KEY_UP) {
+            game.selectedOption = (game.selectedOption - 1 + 5) % 5;
+        } else if (key == GLUT_KEY_DOWN) {
+            game.selectedOption = (game.selectedOption + 1) % 5;
+        }
+        drawScene();
+    }
+    else if(game.currentState == NEW_GAME_MENU) {
+        if (key == GLUT_KEY_UP) {
+            game.selectedOption = (game.selectedOption - 1 + 2) % 2;
+        } else if (key == GLUT_KEY_DOWN) {
+            game.selectedOption = (game.selectedOption + 1) % 2;
+        }
+        drawScene();
+    }
+    else if(game.currentState == LOAD_GAME_MENU) {
+        if (key == GLUT_KEY_UP) {
+            game.selectedOption = (game.selectedOption - 1 + 2) % 2;
+        } else if (key == GLUT_KEY_DOWN) {
+            game.selectedOption = (game.selectedOption + 1) % 2;
+        }
+        drawScene();
+    }
+    else if(game.currentState == RANKING_MENU) {
+        if (key == GLUT_KEY_UP) {
+            game.selectedOption = (game.selectedOption - 1 + 2) % 2;
+        } else if (key == GLUT_KEY_DOWN) {
+            game.selectedOption = (game.selectedOption + 1) % 2;
+        }
+        drawScene();
+    }
+    else if(game.currentState == OPTIONS_MENU) {
+        if (key == GLUT_KEY_UP) {
+            game.selectedOption = (game.selectedOption - 1 + 2) % 2;
+        } else if (key == GLUT_KEY_DOWN) {
+            game.selectedOption = (game.selectedOption + 1) % 2;
+        }
+        drawScene();
+    }
 }
 
 // Função para lidar com o redimensionamento da janela
@@ -426,18 +609,21 @@ void reshape(int w, int h) {
 
 // Função de callback do GLUT para o loop do jogo
 void update(int value) {
-    movePlayer();            // Move o jogador de acordo com a direção e velocidade
-    updateBattery();
-    updatePlayerStatus();
+    if(game.currentState == PLAYING) {
+       if(player.moving) {
+            movePlayer();            // Move o jogador de acordo com a direção e velocidade
+       } 
+        updateBattery();
+        updatePlayerStatus();
 
-    if(goalDots == 0) {
-        updateGame();
+        if(goalDots == 0) {
+            updateGame();
+        }
     }
-    
-    glutPostRedisplay();
 
     // Define o próximo loop de atualização (geralmente 16ms para 60fps)
-    glutTimerFunc(16, update, 0); // Chama `update()` a cada 16ms (aproximadamente 60fps)
+    glutPostRedisplay();
+    glutTimerFunc(4, update, 0); // Chama `update()` a cada 16ms (aproximadamente 60fps)
 }
 
 int main(int argc, char** argv) {
@@ -450,20 +636,19 @@ int main(int argc, char** argv) {
     glutCreateWindow("Maze Game");
 
     // Configura o loop de atualização
-    glutTimerFunc(25, update, 0); // Define o intervalo para 25ms (aproximadamente 40fps)
+    glutTimerFunc(4, update, 0); // Define o intervalo para 25ms (aproximadamente 40fps)
 
     // Funções de inicialização do OpenGL
-    initOpenGL();
-
-    glutTimerFunc(1000, updateGameTime, 0);  // Inicia o timer para atualizar o tempo a cada segundo
+    initGame();
 
     // Registra as funções de callback
     glutDisplayFunc(display);
     // Define callbacks de teclado
+    glutSpecialFunc(keyboardNavigation);  // Função para as teclas de seta
     glutKeyboardFunc(keyboardDown);  // Para quando a tecla é pressionada
     glutKeyboardUpFunc(keyboardUp);   // Para quando a tecla é liberada
     glutReshapeFunc(reshape); // Registra a função de reshape
-
+    
     // Loop principal do GLUT
     glutMainLoop();
 

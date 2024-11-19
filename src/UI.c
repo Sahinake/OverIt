@@ -6,10 +6,18 @@
 
 #include "UI.h"
 #include "Maze.h"
+#include "Sound.h"
+#include "stb_image.h"
+#include "textureloader.h"
 
 // Declaração dos ponteiros para as fontes
-FTGLfont *maxFont;
-FTGLfont *minFont;
+extern FTGLfont *maxFont;
+extern FTGLfont *medFont;
+extern FTGLfont *minFont;
+
+extern Game game;
+
+extern GLuint backgroundTexture;
 
 // Vértices do triângulo
 Point triangle[3] = {
@@ -29,6 +37,18 @@ void initMaxFont(const char* fontPath) {
     
     // Define o tamanho da fonte
     ftglSetFontFaceSize(maxFont, max_font_height, max_font_height);  // Tamanho da fonte em pixels
+}
+
+void initMedFont(const char* fontPath) {
+    // Carrega a fonte usando FTGLPixmapFont
+    medFont = ftglCreatePixmapFont(fontPath);
+    if (medFont == NULL) {
+        fprintf(stderr, "Erro ao carregar a fonte: %s\n", fontPath);
+        exit(1);  // Encerrar se houver erro no carregamento da fonte
+    }
+    
+    // Define o tamanho da fonte
+    ftglSetFontFaceSize(medFont, med_font_height, med_font_height);  // Tamanho da fonte em pixels
 }
 
 void initMinFont(const char* fontPath) {
@@ -64,6 +84,229 @@ float getTextWidth(FTGLfont *font, const char* text) {
     }
 
     return width;
+}
+
+// Função para inicializar o jogo
+void initGame() {
+    // Inicialização do OpenGL
+    glClear(GL_COLOR_BUFFER_BIT);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);  // Cor de fundo (preto)
+
+    setup2DProjection();
+
+    // Carregar a imagem de fundo
+    backgroundTexture = loadTexture("./assets/Background.png");
+
+    initMaxFont("./fonts/Rexlia.ttf");  
+    initMedFont("./fonts/Rexlia.ttf");  
+    initMinFont("./fonts/Rexlia.ttf");
+    initAudio();
+
+    game.currentState = MAIN_MENU;
+    game.selectedOption = 0;
+    glutPostRedisplay();
+}
+
+// Função para desenhar a textura no fundo
+void drawBackground(GLuint texture) {
+    // Habilitar o uso de texturas
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    // Desenhar um quadrado com a textura
+    glBegin(GL_QUADS);
+        glTexCoord2f(0.0f, 0.0f); glVertex2f(0.0f, 0.0f); // canto inferior esquerdo
+        glTexCoord2f(1.0f, 0.0f); glVertex2f(glutGet(GLUT_WINDOW_WIDTH), 0.0f); // canto inferior direito
+        glTexCoord2f(1.0f, 1.0f); glVertex2f(glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT)); // canto superior direito
+        glTexCoord2f(0.0f, 1.0f); glVertex2f(0.0f, glutGet(GLUT_WINDOW_HEIGHT)); // canto superior esquerdo
+    glEnd();
+
+    // Desabilitar o uso de texturas
+    glDisable(GL_TEXTURE_2D);
+}
+
+// Função para desenhar o menu principal
+void drawMainMenu() {
+    glClear(GL_COLOR_BUFFER_BIT);
+    glColor3f(1.0f, 1.0f, 1.0f);
+    drawBackground(backgroundTexture);
+
+    // Configuração para desenhar com transparência
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Desenha o quadrado preto translúcido
+    glColor4f(0.0f, 0.0f, 0.0f, 0.5f);  // Preto com 50% de transparência
+    glBegin(GL_QUADS);
+        glVertex2f(0.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior esquerdo
+        glVertex2f(300.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior direito
+        glVertex2f(300.0f, 0.0f);  // Canto superior direito
+        glVertex2f(0.0f, 0.0f);  // Canto superior esquerdo
+    glEnd();
+
+    // Desabilita o blending após desenhar
+    glDisable(GL_BLEND);
+    
+    char *menuOptions[] = {"New Game", "Load Game", "Ranking", "Options", "Exit"};
+    
+    for (int i = 0; i < 5; i++) {
+        if (i == game.selectedOption) {
+            glColor3f(1.0f, 0.5f, 0.0f);  // Cor de destaque para a opção selecionada
+        } else {
+            glColor3f(1.0f, 1.0f, 1.0f);  // Cor padrão
+        }
+
+        float xPos = 70.0f;
+        float yPos = (glutGet(GLUT_WINDOW_HEIGHT) / 2) + (i * 50);
+        renderText(medFont, menuOptions[i], xPos, yPos);  // Substituir o glutBitmapCharacter
+    }
+
+    glutSwapBuffers();
+}
+
+// Função para desenhar o menu de Novo Jogo
+void drawNewGameMenu() {
+    glClear(GL_COLOR_BUFFER_BIT);
+    glColor3f(1.0f, 1.0f, 1.0f);
+    drawBackground(backgroundTexture);
+
+    // Configuração para desenhar com transparência
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Desenha o quadrado preto translúcido
+    glColor4f(0.0f, 0.0f, 0.0f, 0.5f);  // Preto com 50% de transparência
+    glBegin(GL_QUADS);
+        glVertex2f(0.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior esquerdo
+        glVertex2f(300.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior direito
+        glVertex2f(300.0f, 0.0f);  // Canto superior direito
+        glVertex2f(0.0f, 0.0f);  // Canto superior esquerdo
+    glEnd();
+
+    // Desabilita o blending após desenhar
+    glDisable(GL_BLEND);
+    
+    // Exemplo de opções para o Menu de Novo Jogo
+    char *menuOptions[] = {"Start New Game", "Back"};
+    
+    for (int i = 0; i < 2; i++) {
+        if (i == game.selectedOption) {
+            glColor3f(1.0f, 0.5f, 0.0f);  // Cor de destaque para a opção selecionada
+        } else {
+            glColor3f(1.0f, 1.0f, 1.0f);  // Cor padrão
+        }
+
+        float xPos = 70.0f;
+        float yPos = (glutGet(GLUT_WINDOW_HEIGHT) / 2) + (i * 50);
+        renderText(medFont, menuOptions[i], xPos, yPos);  // Substituir o glutBitmapCharacter
+    }
+
+    glutSwapBuffers();
+}
+
+
+// Função para desenhar o menu de Carregar Jogo
+void drawLoadGameMenu() {
+    glClear(GL_COLOR_BUFFER_BIT);
+    glColor3f(1.0f, 1.0f, 1.0f);
+    drawBackground(backgroundTexture);
+
+    // Configuração para desenhar com transparência
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Desenha o quadrado preto translúcido
+    glColor4f(0.0f, 0.0f, 0.0f, 0.5f);  // Preto com 50% de transparência
+    glBegin(GL_QUADS);
+        glVertex2f(0.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior esquerdo
+        glVertex2f(300.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior direito
+        glVertex2f(300.0f, 0.0f);  // Canto superior direito
+        glVertex2f(0.0f, 0.0f);  // Canto superior esquerdo
+    glEnd();
+
+    // Desabilita o blending após desenhar
+    glDisable(GL_BLEND);
+    
+    // Exemplo de opções para o Menu de Carregar Jogo
+    char *menuOptions[] = {"Load Saved Game", "Back"};
+    
+    for (int i = 0; i < 2; i++) {
+        if (i == game.selectedOption) {
+            glColor3f(1.0f, 0.5f, 0.0f);  // Cor de destaque para a opção selecionada
+        } else {
+            glColor3f(1.0f, 1.0f, 1.0f);  // Cor padrão
+        }
+
+        float xPos = 70.0f;
+        float yPos = (glutGet(GLUT_WINDOW_HEIGHT) / 2) + (i * 50);
+        renderText(medFont, menuOptions[i], xPos, yPos);  // Substituir o glutBitmapCharacter
+    }
+
+    glutSwapBuffers();
+}
+
+// Função para desenhar o menu de Ranking
+void drawRankingMenu() {
+    glClear(GL_COLOR_BUFFER_BIT);
+    glColor3f(1.0f, 1.0f, 1.0f);
+    drawBackground(backgroundTexture);
+
+    // Configuração para desenhar com transparência
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Desenha o quadrado preto translúcido
+    glColor4f(0.0f, 0.0f, 0.0f, 0.5f);  // Preto com 50% de transparência
+    glBegin(GL_QUADS);
+        glVertex2f(0.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior esquerdo
+        glVertex2f(300.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior direito
+        glVertex2f(300.0f, 0.0f);  // Canto superior direito
+        glVertex2f(0.0f, 0.0f);  // Canto superior esquerdo
+    glEnd();
+
+    // Desabilita o blending após desenhar
+    glDisable(GL_BLEND);
+    
+    // Exemplo de opções para o Menu de Ranking
+    char *menuOptions[] = {"View Ranking", "Back"};
+    
+    for (int i = 0; i < 2; i++) {
+        if (i == game.selectedOption) {
+            glColor3f(1.0f, 0.5f, 0.0f);  // Cor de destaque para a opção selecionada
+        } else {
+            glColor3f(1.0f, 1.0f, 1.0f);  // Cor padrão
+        }
+
+        float xPos = 70.0f;
+        float yPos = (glutGet(GLUT_WINDOW_HEIGHT) / 2) + (i * 50);
+        renderText(medFont, menuOptions[i], xPos, yPos);  // Substituir o glutBitmapCharacter
+    }
+
+    glutSwapBuffers();
+}
+
+// Função para desenhar o menu de Opções
+void drawOptionsMenu() {
+    glClear(GL_COLOR_BUFFER_BIT);
+    glColor3f(1.0f, 1.0f, 1.0f);
+    drawBackground(backgroundTexture);
+    
+    // Exemplo de opções para o Menu de Opções
+    char *menuOptions[] = {"Sound On/Off", "Back"};
+    
+    for (int i = 0; i < 2; i++) {
+        if (i == game.selectedOption) {
+            glColor3f(1.0f, 0.5f, 0.0f);  // Cor de destaque para a opção selecionada
+        } else {
+            glColor3f(1.0f, 1.0f, 1.0f);  // Cor padrão
+        }
+
+        float xPos = 70.0f;
+        float yPos = (glutGet(GLUT_WINDOW_HEIGHT) / 2) + (i * 50);
+        renderText(medFont, menuOptions[i], xPos, yPos);  // Substituir o glutBitmapCharacter
+    }
+
+    glutSwapBuffers();
 }
 
 // Função para renderizar o texto da quantidade de dots restantes

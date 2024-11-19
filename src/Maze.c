@@ -175,7 +175,6 @@ void renderMaze() {
     // Configura a espessura do contorno
     glLineWidth(5.0f); // Aumenta a espessura do contorno (ajuste conforme necessário)
 
-    
     for (int x = 0; x < WIDTH; x++) {
         for (int z = 0; z < HEIGHT; z++) {
             if (maze[x][z] == 1) {  // Desenhar paredes
