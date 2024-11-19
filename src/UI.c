@@ -290,6 +290,22 @@ void drawOptionsMenu() {
     glClear(GL_COLOR_BUFFER_BIT);
     glColor3f(1.0f, 1.0f, 1.0f);
     drawBackground(backgroundTexture);
+
+    // Configuração para desenhar com transparência
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Desenha o quadrado preto translúcido
+    glColor4f(0.0f, 0.0f, 0.0f, 0.5f);  // Preto com 50% de transparência
+    glBegin(GL_QUADS);
+        glVertex2f(0.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior esquerdo
+        glVertex2f(300.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior direito
+        glVertex2f(300.0f, 0.0f);  // Canto superior direito
+        glVertex2f(0.0f, 0.0f);  // Canto superior esquerdo
+    glEnd();
+
+    // Desabilita o blending após desenhar
+    glDisable(GL_BLEND);
     
     // Exemplo de opções para o Menu de Opções
     char *menuOptions[] = {"Sound On/Off", "Back"};
