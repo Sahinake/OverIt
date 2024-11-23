@@ -10,6 +10,59 @@
 
 #define M_PI 3.14159265358979323846
 
+// Definindo materiais e iluminação como variáveis globais
+GLfloat contourAmbient[] = { 0.0, 0.0, 1.0, 1.0 }; // Azul
+GLfloat contourDiffuse[] = { 0.0, 0.0, 1.0, 1.0 }; // Azul
+GLfloat contourSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
+GLfloat contourShininess = 20.0;
+
+GLfloat contourGroundAmbient[] = { 0.0, 0.0, 0.0, 1.0 }; // Azul
+GLfloat contourGroundDiffuse[] = { 0.0, 0.0, 1.0, 1.0 }; // Azul
+GLfloat contourGroundSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
+
+GLfloat fillAmbient[] = { 0.0, 0.0, 0.0, 1.0 }; // Preto
+GLfloat fillDiffuse[] = { 0.1, 0.1, 0.1, 1.0 }; // Preto
+GLfloat fillSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
+GLfloat fillShininess = 20.0;
+
+GLfloat lightPosition[] = { 0.0, 10.0, 0.0, 1.0 }; // Posição da luz
+GLfloat lightAmbient[] = { 0.0, 0.0, 0.0, 1.0 }; // Luz ambiente
+GLfloat lightDiffuse[] = { 0.2, 0.2, 0.2, 1.0 }; // Luz difusa
+GLfloat lightSpecular[] = { 1.0, 1.0, 1.0, 1.0 }; // Luz especular
+
+GLfloat groundAmbient[] = { 0.0, 0.0, 0.0, 1.0 };  // Cor ambiente do chão (cinza claro)
+GLfloat groundDiffuse[] = { 0.1, 0.1, 0.1, 1.0 };  // Cor difusa do chão
+GLfloat groundSpecular[] = { 0.3, 0.3, 0.3, 1.0 }; // Reflexão especular (baixo brilho)
+GLfloat groundShininess = 10.0;  // Baixo brilho para simular um chão fosco
+
+GLfloat exitAmbient[] = { 0.0, 1.0, 0.0, 1.0 }; // Verde
+GLfloat exitDiffuse[] = { 0.0, 1.0, 0.0, 1.0 };
+GLfloat exitSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
+GLfloat exitShininess = 20.0;
+
+void initializeRendering() {
+    // Ativa a luz
+    glLightfv(GL_LIGHT2, GL_POSITION, lightPosition);
+    glLightfv(GL_LIGHT2, GL_AMBIENT, lightAmbient);
+    glLightfv(GL_LIGHT2, GL_DIFFUSE, lightDiffuse);
+    glLightfv(GL_LIGHT2, GL_SPECULAR, lightSpecular);
+    glEnable(GL_LIGHT2); // Habilita a luz
+    glEnable(GL_LIGHT2); // Ativa a iluminação
+
+    // Fatores de atenuação baseados em maxDistance
+    float constantAttenuation = 0.2f;
+    float linearAttenuation = 0.9f / maxDistance; // Ajuste linear para atingir 0 em maxDistance
+    float quadraticAttenuation = 1.0f / (maxDistance * maxDistance); // Ajuste quadrático para suavizar o decaimento
+
+    // Configura a atenuação da luz
+    glLightf(GL_LIGHT2, GL_CONSTANT_ATTENUATION, constantAttenuation);
+    glLightf(GL_LIGHT2, GL_LINEAR_ATTENUATION, linearAttenuation);
+    glLightf(GL_LIGHT2, GL_QUADRATIC_ATTENUATION, quadraticAttenuation);
+
+    // Configura a espessura do contorno
+    glLineWidth(5.0f); // Aumenta a espessura do contorno (ajuste conforme necessário)
+}
+
 // Função para inicializar o labirinto com paredes
 void initMaze() {
     for (int i = 0; i < WIDTH; i++) {
@@ -120,61 +173,6 @@ void initializeExit() {
 
 // Função para renderizar o labirinto em 3D usando materiais e iluminação
 void renderMaze() {
-    // Define o material para o contorno azul
-    GLfloat contourAmbient[] = { 0.0, 0.0, 1.0, 1.0 }; // Azul
-    GLfloat contourDiffuse[] = { 0.0, 0.0, 1.0, 1.0 }; // Azul
-    GLfloat contourSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
-    GLfloat contourShininess = 20.0; // Brilho baixo
-
-    // Define o material para o contorno azul
-    GLfloat contourGroundAmbient[] = { 0.0, 0.0, 0.0, 1.0 }; // Azul
-    GLfloat contourGroundDiffuse[] = { 0.0, 0.0, 1.0, 1.0 }; // Azul
-    GLfloat contourGroundSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
-
-    // Define o material para o preenchimento preto
-    GLfloat fillAmbient[] = { 0.0, 0.0, 0.0, 1.0 }; // Preto
-    GLfloat fillDiffuse[] = { 0.2, 0.2, 0.2, 1.0 }; // Preto
-    GLfloat fillSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
-    GLfloat fillShininess = 20.0; // Brilho baixo
-
-    // Configuração de iluminação
-    GLfloat lightPosition[] = { 0.0, 10.0, 0.0, 1.0 }; // Posição da luz
-    GLfloat lightAmbient[] = { 0.0, 0.0, 0.0, 1.0 }; // Luz ambiente
-    GLfloat lightDiffuse[] = { 0.2, 0.2, 0.2, 1.0 }; // Luz difusa
-    GLfloat lightSpecular[] = { 1.0, 1.0, 1.0, 1.0 }; // Luz especular
-
-    // Material para o chão (pode ser uma cor cinza ou marrom)
-    GLfloat groundAmbient[] = { 0.0, 0.0, 0.0, 1.0 };  // Cor ambiente do chão (cinza claro)
-    GLfloat groundDiffuse[] = { 0.2, 0.2, 0.2, 1.0 };  // Cor difusa do chão
-    GLfloat groundSpecular[] = { 0.3, 0.3, 0.3, 1.0 }; // Reflexão especular (baixo brilho)
-    GLfloat groundShininess = 10.0;  // Baixo brilho para simular um chão fosco
-
-    GLfloat exitAmbient[] = { 0.0, 1.0, 0.0, 1.0 }; // Verde
-    GLfloat exitDiffuse[] = { 0.0, 1.0, 0.0, 1.0 };
-    GLfloat exitSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
-    GLfloat exitShininess = 20.0;
-
-    // Ativa a luz
-    glLightfv(GL_LIGHT2, GL_POSITION, lightPosition);
-    glLightfv(GL_LIGHT2, GL_AMBIENT, lightAmbient);
-    glLightfv(GL_LIGHT2, GL_DIFFUSE, lightDiffuse);
-    glLightfv(GL_LIGHT2, GL_SPECULAR, lightSpecular);
-    glEnable(GL_LIGHT2); // Habilita a luz
-    glEnable(GL_LIGHT2); // Ativa a iluminação
-
-    // Fatores de atenuação baseados em maxDistance
-    float constantAttenuation = 0.2f;
-    float linearAttenuation = 0.9f / maxDistance; // Ajuste linear para atingir 0 em maxDistance
-    float quadraticAttenuation = 1.0f / (maxDistance * maxDistance); // Ajuste quadrático para suavizar o decaimento
-
-    // Configura a atenuação da luz
-    glLightf(GL_LIGHT2, GL_CONSTANT_ATTENUATION, constantAttenuation);
-    glLightf(GL_LIGHT2, GL_LINEAR_ATTENUATION, linearAttenuation);
-    glLightf(GL_LIGHT2, GL_QUADRATIC_ATTENUATION, quadraticAttenuation);
-
-    // Configura a espessura do contorno
-    glLineWidth(5.0f); // Aumenta a espessura do contorno (ajuste conforme necessário)
-
     for (int x = 0; x < WIDTH; x++) {
         for (int z = 0; z < HEIGHT; z++) {
             if (maze[x][z] == 1) {  // Desenhar paredes

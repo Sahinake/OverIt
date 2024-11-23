@@ -11,7 +11,7 @@
 #define MAX_BATTERY 70.0f 
 #define MAX_HEALTH 100.0f             
 #define MAX_SANITY 100.0f            
-#define BATTERY_DECREASE_RATE 0.005f 
+#define BATTERY_DECREASE_RATE 0.01f 
 #define HEALTH_DECREASE_RATE 0.02f
 #define SANITY_DECREASE_RATE 0.02f
 
@@ -61,6 +61,7 @@ extern Battery batteries[BATTERY_COUNT]; // Vetor de baterias
 extern Player player;
 extern Exit exitDoor;
 
+void initializeRendering();
 void initMaze();
 void generateMaze(int x, int y);
 void spawnPlayer();

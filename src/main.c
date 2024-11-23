@@ -23,7 +23,7 @@
 #define MAX_BATTERY 70.0f               // Capacidade máxima da lanterna
 #define MAX_HEALTH 100.0f               // Capacidade máxima da vida
 #define MAX_SANITY 100.0f               // Capacidade máxima da sanidade
-#define BATTERY_DECREASE_RATE 0.005f    // Taxa de diminuição da bateria por atualização de frame
+#define BATTERY_DECREASE_RATE 0.01f    // Taxa de diminuição da bateria por atualização de frame
 #define HEALTH_DECREASE_RATE 0.02f      // Taxa de diminuição da bateria por atualização de frame
 #define SANITY_DECREASE_RATE 0.02f      // Taxa de diminuição da bateria por atualização de frame
 #define NUM_MENU_OPTIONS 5              // Opções do Menu
@@ -243,7 +243,6 @@ void display() {
         renderBatteryUI();
         renderSanityUI();
         renderHealthUI();
-        glFlush();  // Força a execução do desenho
         glPopMatrix(); // Restaura o estado de transformação
 
         glMatrixMode(GL_PROJECTION);
@@ -253,7 +252,6 @@ void display() {
     }
 
     glutSwapBuffers();
-    glFlush();
 }
 
 // Configurações de inicialização do OpenGL para 3D
@@ -265,6 +263,7 @@ void initPlaying() {
         glCullFace(GL_BACK);
         glEnable(GL_LIGHTING); // Ativa a iluminação
         glEnable(GL_LIGHT0);    // Ativa a luz 0
+        initializeRendering();
         initMaze();
         initializePlayer();
         generateMaze(1, 1);
@@ -388,6 +387,7 @@ void keyboardDown(unsigned char key, int x, int y) {
         }
     }
     else if(key == 'r' || key == 'R') {
+        initializeRendering();
         initMaze();
         generateMaze(1, 1);
         spawnPlayer();
