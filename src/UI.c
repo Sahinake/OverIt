@@ -95,7 +95,7 @@ void initGame() {
     setup2DProjection();
 
     // Carregar a imagem de fundo
-    backgroundTexture = loadTexture("./assets/Background.png");
+    backgroundTexture = loadTexture("./assets/Images/Background.png");
 
     initMaxFont("./fonts/Rexlia.ttf");  
     initMedFont("./fonts/Rexlia.ttf");  

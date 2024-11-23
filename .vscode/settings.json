@@ -11,6 +11,7 @@
         "time.h": "c",
         "ui.h": "c",
         "ftgl.h": "c",
-        "sound.h": "c"
+        "sound.h": "c",
+        "miniaudio.h": "c"
     }
 }

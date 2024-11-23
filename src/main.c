@@ -29,20 +29,21 @@
 #define NUM_MENU_OPTIONS 5              // Opções do Menu
 #define M_PI 3.14159265358979323846
 #define STB_IMAGE_IMPLEMENTATION
+#define SOUND_POOL_SIZE 15
 
 int maze[WIDTH][HEIGHT];
 int maze_widht = WIDTH, maze_height = HEIGHT;
 int window_width = 800, window_height = 600;
 
-int goalDots; // Quantidade de dots que o jogador precisa coletar
+int goalDots;                           // Quantidade de dots que o jogador precisa coletar
 int total_batteries = 5;
 
 float lightDirX = 0.0f;
-float lightDirZ = 1.0f;     // Inicialmente apontando para "frente"
-float maxDistance = 5.0f;   // Distância máxima para a lanterna
+float lightDirZ = 1.0f;                 // Inicialmente apontando para "frente"
+float maxDistance = 5.0f;               // Distância máxima para a lanterna
 
-float batteryCharge = MAX_BATTERY; // Bateria começa cheia
-float batteryPercentage = MAX_BATTERY_PERCENTAGE; // A bateria começa com 100%
+float batteryCharge = MAX_BATTERY;                  // Bateria começa cheia
+float batteryPercentage = MAX_BATTERY_PERCENTAGE;   // A bateria começa com 100%
 float batteryDecrease = BATTERY_DECREASE_RATE;
 
 // Variáveis globais para o tempo
@@ -61,9 +62,16 @@ Exit exitDoor;
 ma_engine engine;
 ma_sound soundAmbient;
 ma_sound soundDotCollect;
+ma_sound soundMenu;
+ma_sound soundMenuSelectPool[SOUND_POOL_SIZE];
+ma_sound soundMenuChangePool[SOUND_POOL_SIZE];
+ma_sound soundMenuBackPool[SOUND_POOL_SIZE];
 
 // Variável global para o volume (pode ser ajustada entre 0.0 e 1.0)
-float volumeEffects = 1.0f;
+float volumeEffects = 0.6f;
+float volumeMusic = 1.0f;
+float volumeAmbient = 0.4f;
+int isMainMenuMusicOn = 0;
 GLuint backgroundTexture;
 
 bool isGamePaused = false;
@@ -78,13 +86,13 @@ FTGLfont *minFont;
 
 // Função para a câmera seguir o jogador
 void cameraFollowPlayer() {
-    float camX = player.posX;      // Posicionar a câmera na mesma linha X do jogador
-    float camY = 8.0f;         // Eleva a câmera para uma visão de cima (Y mais alto)
-    float camZ = player.posZ - 5.0f; // Posicionar a câmera atrás do jogador no eixo Z
+    float camX = player.posX;           // Posicionar a câmera na mesma linha X do jogador
+    float camY = 8.0f;                  // Eleva a câmera para uma visão de cima (Y mais alto)
+    float camZ = player.posZ - 4.0f;    // Posicionar a câmera atrás do jogador no eixo Z
 
-    gluLookAt(camX, camY, camZ, // Posição da câmera
-              player.posX, player.posY, player.posZ, // Olhando para o jogador
-              0.0f, 0.0f, 1.0f);     // Up vector
+    gluLookAt(camX, camY, camZ,                         // Posição da câmera
+              player.posX, player.posY, player.posZ,    // Olhando para o jogador
+              0.0f, 0.0f, 1.0f);                        // Up vector
 }
 
 // Função para configurar a iluminação de forma mais flexível
@@ -104,7 +112,7 @@ void updateLighting() {
     GLfloat lightPos[] = { (float)player.posX, 1.0f, (float)player.posZ, 1.0f };
 
     // A direção da luz será ajustada com base no movimento do jogador
-    GLfloat lightDir[] = { lightDirX, -0.5f, lightDirZ }; // Um pequeno ajuste na direção da luz para simular uma lanterna
+    GLfloat lightDir[] = { lightDirX, -0.5f, lightDirZ }; 
 
     // Definindo características da luz ambiente, difusa e especular
     GLfloat ambientLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -114,23 +122,22 @@ void updateLighting() {
         lightIntensity = 0.0f;
     }
     else {
-         // A intensidade da luz vai diminuir com a carga da bateria
+        // A intensidade da luz vai diminuir com a carga da bateria
         lightIntensity = batteryCharge / 100.0f; // A intensidade é proporcional à carga da bateria
     }
     
     GLfloat diffuseLight[] = { lightIntensity, lightIntensity, lightIntensity, 1.0f };  // A luz fica mais fraca à medida que a bateria acaba
-    // Especular (reflexão) também pode ser ajustado, mas normalmente é mais sutil
     GLfloat specularLight[] = { lightIntensity, lightIntensity, lightIntensity, 1.0f };
 
     // Ajuste do brilho do material
-    GLfloat shininess = 100.0f; // Brilho médio
-    GLfloat spotExponent = 10.0f; // Controla a suavização da borda do cone (quanto maior, mais nítido)
-    GLfloat spotCutoff = 30.0f;  // Ângulo do cone de iluminação (quanto menor, mais estreito o cone)
+    GLfloat shininess = 100.0f;         // Brilho médio
+    GLfloat spotExponent = 10.0f;       // Controla a suavização da borda do cone (quanto maior, mais nítido)
+    GLfloat spotCutoff = 30.0f;         // Ângulo do cone de iluminação (quanto menor, mais estreito o cone)
 
     // Fatores de atenuação baseados em maxDistance
     float constantAttenuation = 1.0f;
-    float linearAttenuation = 0.1f / maxDistance; // Ajuste linear para atingir 0 em maxDistance
-    float quadraticAttenuation = 0.05f / (maxDistance * maxDistance); // Ajuste quadrático para suavizar o decaimento
+    float linearAttenuation = 0.1f / maxDistance;                       // Ajuste linear para atingir 0 em maxDistance
+    float quadraticAttenuation = 0.05f / (maxDistance * maxDistance);   // Ajuste quadrático para suavizar o decaimento
 
     // Chamando a função que configura a iluminação
     setLighting(lightPos, lightDir, ambientLight, diffuseLight, specularLight, shininess, spotExponent);
@@ -146,83 +153,28 @@ void updateLighting() {
 
 // Função para verificar a colisão com as paredes considerando o raio da esfera
 bool checkCollision(float newX, float newZ) {
-    // // Verifica se a nova posição está dentro dos limites da área de jogo
-    // if (newX > 0 && newX < WIDTH && newZ > 0 && newZ < HEIGHT) {
-    //     // Define as coordenadas das bordas da esfera com base no raio
-    //     int minX = (int)(newX - player.radius);
-    //     int maxX = (int)(newX + player.radius);
-    //     int minZ = (int)(newZ - player.radius);
-    //     int maxZ = (int)(newZ + player.radius);
-
-    //     // Verifica se qualquer parte da esfera colide com uma parede
-    //     for (int x = minX; x <= maxX; x++) {
-    //         for (int z = minZ; z <= maxZ; z++) {
-    //             // Verifica se (x, z) está dentro dos limites do labirinto
-    //             if (x >= 0 && x < WIDTH && z >= 0 && z < HEIGHT) {
-    //                 // Verifica se há uma parede na posição (x, z)
-    //                 if (maze[x][z] == 1) {
-    //                     float wallCenterX = x + 0.5;
-    //                     float wallCenterZ = z + 0.5;
-
-    //                     // Calcula a distância entre o centro da esfera e o centro da parede
-    //                     float distX = newX - wallCenterX;
-    //                     float distZ = newZ - wallCenterZ;
-    //                     float distance = sqrt(distX * distX + distZ * distZ);
-
-    //                     // Se a distância for menor que o raio, houve colisão
-    //                     if (distance < player.radius) {
-    //                         return false; // Colisão detectada
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     return true; // Sem colisão
-    // }
-    // return false; // Fora dos limites
     int gridX = (int)(newX);  // Convertendo a posição X para índices da grid
     int gridZ = (int)(newZ);  // Convertendo a posição Z para índices da grid
 
-    // Verifica se a nova posição está dentro dos limites da grid e se há um cubo branco
     if (gridX >= 0 && gridX < WIDTH && gridZ >= 0 && gridZ < HEIGHT) {
-        if (maze[gridX][gridZ] == 1) {  // Se houver um cubo na posição
-            return true;  // Há uma colisão
+        if (maze[gridX][gridZ] == 1) {  
+            return true;              
         }
     } else {
-        return true; // Fora dos limites do mapa
+        return true;    // Fora dos limites do mapa
     }
-    return false; // Sem colisão
+    return false;       // Sem colisão
 }
 
 
 // Função para mover o jogador gradualmente em direção à direção definida
 void movePlayer() {
-    // // Calcula a nova posição baseada na velocidade e direção
-    // float newX = player.posX + player.moveDirX * player.speed;
-    // float newY = player.posY + player.moveDirY * player.speed;
-
-    // if(newX > 0 && newX < WIDTH && newY > 0 && newY < HEIGHT) {
-    //     if(maze[(int)floor(newX)][(int)floor(newY)] != 1) {
-    //         // Verifica colisão com as paredes
-    //         if (checkCollision(newX, newY)) {
-    //             player.posX = newX;
-    //             player.posY = newY;
-    //             player.x = (int)(player.posX);
-    //             player.y = (int)(player.posY);
-                
-    //             if(maze[player.x][player.y] == 2 || maze[player.x][player.y] == 3) {
-    //                 // Verifica colisão com objetos (se houver)
-    //                 checkObjectCollision();
-    //             }
-    //         }
-    //     }
-    // }
     if (player.moving) {
         if (player.posX != player.targetX) {
             player.posX += player.speedX;
             if ((player.speedX > 0 && player.posX >= player.targetX) || (player.speedX < 0 && player.posX <= player.targetX)) {
-                player.posX = player.targetX;  // Chegou ao destino
-                player.speedX = 0.0f;  // Parar movimento no eixo X
+                player.posX = player.targetX;   // Chegou ao destino
+                player.speedX = 0.0f;           // Parar movimento no eixo X
                 player.x = (int)(player.posX);
             }
         }
@@ -230,8 +182,8 @@ void movePlayer() {
         if (player.posZ != player.targetZ) {
             player.posZ += player.speedZ;
             if ((player.speedZ > 0 && player.posZ >= player.targetZ) || (player.speedZ < 0 && player.posZ <= player.targetZ)) {
-                player.posZ = player.targetZ;  // Chegou ao destino
-                player.speedZ = 0.0f;  // Parar movimento no eixo Z
+                player.posZ = player.targetZ;   // Chegou ao destino
+                player.speedZ = 0.0f;           // Parar movimento no eixo Z
                 player.y = (int)(player.posZ);
             }
         }
@@ -247,7 +199,6 @@ void movePlayer() {
     }
 
     glutPostRedisplay();
-    // glutTimerFunc(16, movePlayer, 0);  // Chama a função novamente após 16ms (aproximadamente 60 FPS)
 }
 
 // Função para renderizar a cena
@@ -256,18 +207,29 @@ void display() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glLoadIdentity();
         setup2DProjection();
-        glPushMatrix(); // Salva o estado atual da transformação
+        glPushMatrix();     // Salva o estado atual da transformação
         drawMainMenu();
-        glFlush();  // Força a execução do desenho
-        glPopMatrix(); // Restaura o estado de transformação
+        if(isMainMenuMusicOn == 0) {
+            playMenuMusic();
+            isMainMenuMusicOn = 1;
+        }
+        glFlush();          // Força a execução do desenho
+        glPopMatrix();      // Restaura o estado de transformação
     }
     else if(game.currentState == PLAYING) {
+        stopMenuMusic();
+        isMainMenuMusicOn = 0;
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Configura a projeção 3D para renderizar o jogo
         setup3DProjection();  // Configura a projeção 3D para o jogo
         glPushMatrix();       // Salva o estado da transformação atual
         cameraFollowPlayer(); // Move a câmera para seguir o jogador
+        
+        if(player.moving) {
+            movePlayer();     // Move o jogador de acordo com a direção e velocidade
+        } 
+
         updateLighting();     // Atualiza a iluminação de acordo com o jogador
         renderScene();        // Renderiza o jogador e os dots
         glPopMatrix();        // Restaura o estado da transformação
@@ -299,6 +261,8 @@ void initPlaying() {
     if (game.currentState == PLAYING) {
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
         glEnable(GL_LIGHTING); // Ativa a iluminação
         glEnable(GL_LIGHT0);    // Ativa a luz 0
         initMaze();
@@ -485,36 +449,45 @@ void keyboardDown(unsigned char key, int x, int y) {
                 } else if (game.selectedOption == 4) {
                     exit(0);  // Sair do jogo
                 }
+                playMenuSelectSound();
                 break;
             case NEW_GAME_MENU:
                 if (game.selectedOption == 0) {
                     game.currentState = PLAYING;  // Começar o jogo
+                    playMenuSelectSound();
                 } else {
                     game.currentState = MAIN_MENU;
                     game.selectedOption = 0;
+                    playMenuBackSound();
                 }
                 break;
             case LOAD_GAME_MENU:
                 if (game.selectedOption == 0) {
                     // Lógica para carregar o jogo
+                    playMenuSelectSound();
                 } else {
                     game.currentState = MAIN_MENU;
                     game.selectedOption = 1;
+                    playMenuBackSound();
                 }
                 break;
             case RANKING_MENU:
                 if (game.selectedOption == 0) {
                     // Lógica para carregar o jogo
+                    playMenuSelectSound();
                 } else {
                     game.currentState = MAIN_MENU;
                     game.selectedOption = 2;
+                    playMenuBackSound();
                 }
             case OPTIONS_MENU:
                 if (game.selectedOption == 0) {
                     // Lógica para carregar o jogo
+                    playMenuSelectSound();
                 } else {
                     game.currentState = MAIN_MENU;
                     game.selectedOption = 3;
+                    playMenuBackSound();
                 }
                 break;
             case PLAYING:
@@ -522,7 +495,6 @@ void keyboardDown(unsigned char key, int x, int y) {
             default:
                 break;
         }
-
         drawScene();
     }
     
@@ -552,6 +524,7 @@ void keyboardNavigation(int key, int x, int y) {
         } else if (key == GLUT_KEY_DOWN) {
             game.selectedOption = (game.selectedOption + 1) % 5;
         }
+        playMenuChangeSound();
         drawScene();
     }
     else if(game.currentState == NEW_GAME_MENU) {
@@ -560,6 +533,7 @@ void keyboardNavigation(int key, int x, int y) {
         } else if (key == GLUT_KEY_DOWN) {
             game.selectedOption = (game.selectedOption + 1) % 2;
         }
+        playMenuChangeSound();
         drawScene();
     }
     else if(game.currentState == LOAD_GAME_MENU) {
@@ -568,6 +542,7 @@ void keyboardNavigation(int key, int x, int y) {
         } else if (key == GLUT_KEY_DOWN) {
             game.selectedOption = (game.selectedOption + 1) % 2;
         }
+        playMenuChangeSound();
         drawScene();
     }
     else if(game.currentState == RANKING_MENU) {
@@ -576,6 +551,7 @@ void keyboardNavigation(int key, int x, int y) {
         } else if (key == GLUT_KEY_DOWN) {
             game.selectedOption = (game.selectedOption + 1) % 2;
         }
+        playMenuChangeSound();
         drawScene();
     }
     else if(game.currentState == OPTIONS_MENU) {
@@ -584,6 +560,7 @@ void keyboardNavigation(int key, int x, int y) {
         } else if (key == GLUT_KEY_DOWN) {
             game.selectedOption = (game.selectedOption + 1) % 2;
         }
+        playMenuChangeSound();
         drawScene();
     }
 }
@@ -612,9 +589,6 @@ void reshape(int w, int h) {
 // Função de callback do GLUT para o loop do jogo
 void update(int value) {
     if(game.currentState == PLAYING) {
-       if(player.moving) {
-            movePlayer();            // Move o jogador de acordo com a direção e velocidade
-       } 
         updateBattery();
         updatePlayerStatus();
 

@@ -319,7 +319,13 @@ bool checkObjectCollision() {
                 batteries[i].collected = true;
                 total_batteries--;
                 maze[player.x][player.y] = 0;
-                batteryPercentage += 20.0f;
+                if(batteryPercentage <= 85.0f) {
+                    batteryPercentage += 15.0f;
+                }
+                else {
+                    batteryPercentage = 100.0f;
+                }
+                
             }
         }
     }
