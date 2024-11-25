@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <GL/glut.h>
+#include "ObjLoader.h"
 
 #define WIDTH 20 
 #define HEIGHT 20 
@@ -39,6 +40,7 @@ typedef struct {
     int dotsCount;
     int x, y;                   // Posições inteiras (usadas para labirinto)
     int level;
+    float rotation;
 } Player;
 
 typedef struct {
@@ -97,12 +99,12 @@ void initializeExit(Game* game);
 void setMaterial(GLfloat ambient[4], GLfloat diffuse[4], GLfloat specular[4], GLfloat shininess);
 void renderMaze(Game* game);
 bool isObjectVisible(Player* player, int objX, int objY);
-void renderPlayerAndObjects(Game* game, Player* player) ;
+void renderPlayerAndObjects(Game* game, Player* player, Object* playerModel);
 bool checkObjectCollision(Game* game, Player* player) ;
 void updateBattery(Player* player);
 void updatePlayerStatus(Player* player);
 void generateExit(Game* game);
 int updateGame(Game* game, Player* player);
-void renderScene(Game* game, Player* player);
+void renderScene(Game* game, Player* player, Object* playerModel);
 
 #endif

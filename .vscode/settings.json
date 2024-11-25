@@ -14,6 +14,7 @@
         "sound.h": "c",
         "miniaudio.h": "c",
         "textureloader.h": "c",
-        "saveload.h": "c"
+        "saveload.h": "c",
+        "objloader.h": "c"
     }
 }

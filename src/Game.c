@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <math.h>
 
+#include "ObjLoader.h"
 #include "UI.h"
 #include "Game.h"
 #include "Sound.h"
@@ -16,6 +17,8 @@
 #define MAX_BATTERY_PERCENTAGE 100.0f
 #define MAX_BATTERY 70.0f 
 #define DOT_COUNT 30
+
+extern char saveName[256];
 
 // Definindo materiais e iluminação como variáveis globais
 GLfloat contourAmbient[] = { 0.0, 0.0, 1.0, 1.0 }; // Azul
@@ -89,7 +92,7 @@ void initGame(Game* game, Player* player) {
     spawnBatteries(game);
     generateExit(game);
     if(wasTheGameSaved == 0) {
-        saveGame("game_save.dat", player, game, elapsedTime);
+        saveGame(saveName, player, game, elapsedTime);
         wasTheGameSaved = 1;
     }
 
@@ -189,6 +192,7 @@ void initializePlayer(Player* player) {
     player->flashlightPercentage = MAX_BATTERY_PERCENTAGE;
     player->flashlightCharge = MAX_BATTERY;
     player->dotsCount = DOT_COUNT;
+    player->rotation = 90.0f;
 }
 
 void initializeExit(Game* game) {
@@ -273,19 +277,46 @@ bool isObjectVisible(Player* player, int objX, int objY) {
 }
 
 // Função para renderizar o jogador e os dots usando materiais
-void renderPlayerAndObjects(Game* game, Player* player) {
+void renderPlayerAndObjects(Game* game, Player* player, Object* playerModel) {
     // Define o material do jogador
     GLfloat playerAmbient[] = { 0.2, 0.0, 0.0, 1.0 };
     GLfloat playerDiffuse[] = { 1.0, 0.0, 0.0, 1.0 };
     GLfloat playerSpecular[] = { 0.5, 0.5, 0.5, 1.0 };
     GLfloat playerShininess = 50.0; // Brilho médio
 
-    // Renderiza o jogador
-    setMaterial(playerAmbient, playerDiffuse, playerSpecular, playerShininess);
-    glPushMatrix();
-    glTranslatef(player->posX, player->posY, player->posZ);
-    glutSolidSphere(player->radius, 20, 20); // Usa uma esfera para o jogador
-    glPopMatrix();
+    // Renderiza o jogador (substituindo a esfera pelo modelo)
+    if (playerModel != NULL) {
+        setMaterial(playerAmbient, playerDiffuse, playerSpecular, playerShininess);
+        glPushMatrix();
+        glTranslatef(player->posX, player->posY, player->posZ); // Move para a posição do jogador
+        glScalef(player->radius, player->radius, player->radius); // Escala para o tamanho do jogador
+        glRotatef(player->rotation, 0.0f, 1.0f, 0.0f);  // Rotaciona o player no eixo Y
+        
+        // Renderiza o modelo do jogador
+        for (int i = 0; i < playerModel->size; i++) {
+            glBegin(GL_TRIANGLES);
+            Face face = playerModel->faces[i];
+
+            // Define normais e vértices para cada face
+            glNormal3f(face.normaA.x, face.normaA.y, face.normaA.z);
+            glVertex3f(face.vertexA.x, face.vertexA.y, face.vertexA.z);
+
+            glNormal3f(face.normaB.x, face.normaB.y, face.normaB.z);
+            glVertex3f(face.vertexB.x, face.vertexB.y, face.vertexB.z);
+
+            glNormal3f(face.normaC.x, face.normaC.y, face.normaC.z);
+            glVertex3f(face.vertexC.x, face.vertexC.y, face.vertexC.z);
+            glEnd();
+        }
+        glPopMatrix();
+    } else {
+        // Renderiza a esfera caso o modelo não tenha sido carregado
+        setMaterial(playerAmbient, playerDiffuse, playerSpecular, playerShininess);
+        glPushMatrix();
+        glTranslatef(player->posX, player->posY, player->posZ);
+        glutSolidSphere(player->radius, 20, 20);
+        glPopMatrix();
+    }
 
     // Define o material dos dots
     GLfloat dotAmbient[] = { 0.0, 0.0, 0.0, 1.0 };
@@ -454,14 +485,14 @@ int updateGame(Game* game, Player* player) {
         spawnBatteries(game);
         initializeExit(game);
         generateExit(game);
-        saveGame("game_save.dat", player, game, elapsedTime);
+        saveGame(saveName, player, game, elapsedTime);
         return 1;
     }
     return 0;
 }
 
 // Função para renderizar o labirinto e outros elementos
-void renderScene(Game* game, Player* player) {
+void renderScene(Game* game, Player* player, Object* playerModel) {
     renderMaze(game);
-    renderPlayerAndObjects(game, player);
+    renderPlayerAndObjects(game, player, playerModel);
 }

@@ -9,6 +9,7 @@
 #include <time.h>
 #include <math.h>
 
+#include "ObjLoader.h"
 #include "UI.h"
 #include "Game.h"
 #include "Time.h"
@@ -51,7 +52,6 @@ float batteryDecrease = BATTERY_DECREASE_RATE;
 time_t startTime;
 time_t currentTime;
 time_t lastSaveTime;  // Variável para armazenar o tempo do último save
-int numSaves = 0;
 
 int elapsedTime;
 int elapsedSaveTime = 0;
@@ -82,6 +82,7 @@ bool isGamePaused = false;
 // Instância global do jogo
 Game game;
 GLuint icons[2];
+char saveName[256];
 
 int newGame = -1;
 
@@ -89,6 +90,11 @@ int newGame = -1;
 FTGLfont *maxFont;
 FTGLfont *medFont;
 FTGLfont *minFont;
+
+ObjectList objectList;
+
+// Pegue o primeiro objeto carregado como modelo do jogador
+Object* playerModel;
 
 // Função para a câmera seguir o jogador
 void cameraFollowPlayer() {
@@ -278,7 +284,7 @@ void display() {
         } 
 
         updateLighting();                   // Atualiza a iluminação de acordo com o jogador
-        renderScene(&game, &player);        // Renderiza o jogador e os dots
+        renderScene(&game, &player, playerModel);        // Renderiza o jogador e os dots
         glPopMatrix();                      // Restaura o estado da transformação
 
         // Configura a projeção 2D para renderizar a UI
@@ -316,6 +322,7 @@ void keyboardDown(unsigned char key, int x, int y) {
         }
         lightDirX = 0.0f; 
         lightDirZ = 1.0f;
+        player.rotation = 90.0f;
     }
     else if ((key == 's' || key == 'S') && !player.moving) {  // Move para trás (no eixo Z)
         posZ = player.posZ - 1.0f;
@@ -326,6 +333,7 @@ void keyboardDown(unsigned char key, int x, int y) {
         }
         lightDirX = 0.0f; 
         lightDirZ = -1.0f;
+        player.rotation = -90.0f;
     }
     else if ((key == 'a' || key == 'A') && !player.moving) {  // Move para a esquerda (no eixo X)
         posX = player.posX + 1.0f;
@@ -336,6 +344,7 @@ void keyboardDown(unsigned char key, int x, int y) {
         }
         lightDirX = +1.0f; 
         lightDirZ = 0.0f;
+        player.rotation = 180.0f;
     }
     else if ((key == 'd' || key == 'D') && !player.moving) {  // Move para a direita (no eixo X)
         posX = player.posX - 1.0f;
@@ -346,6 +355,7 @@ void keyboardDown(unsigned char key, int x, int y) {
         }
         lightDirX = -1.0f; 
         lightDirZ = 0.0f; 
+        player.rotation = 0.0f;
     }
     else if (key == 'f' || key == 'F') {
         player.flashlight = player.flashlight == 1 ? 0 : 1;
@@ -399,6 +409,10 @@ void keyboardDown(unsigned char key, int x, int y) {
         }
     } // ESC para sair
 
+    if (key == 127) {
+        deleteSelectedSave(&game);
+    } // Delete
+
     // Adiciona teclas para controle de volume
     if (key == 'v') { // Aumentar volume dos efeitos
         increaseEffectVolume();
@@ -429,13 +443,14 @@ void keyboardDown(unsigned char key, int x, int y) {
                 break;
             case NEW_GAME_MENU:
                 newGame = 1;
+                saveSelectedGame(&game, &player, elapsedTime);
                 //game.currentState = PLAYING;  // Começar o jogo
                 playMenuSelectSound();
                 break;
             case LOAD_GAME_MENU:
                 newGame = 0;
                 loadSelectedGame(&game, &player);
-                //printSave("game_save.dat");
+                //printSave(saveName);
                 break;
             case RANKING_MENU:
                 if (game.selectedOption == 0) {
@@ -501,11 +516,10 @@ void keyboardNavigation(int key, int x, int y) {
         drawScene();
     }
     else if (game.currentState == LOAD_GAME_MENU) {
-        numSaves = countFilesInDirectory("./saves");
         if (key == GLUT_KEY_UP) {
-            game.selectedOption = (game.selectedOption - 1 + numSaves) % numSaves;
+            game.selectedOption = (game.selectedOption - 1 + 4) % 4;
         } else if (key == GLUT_KEY_DOWN) {
-            game.selectedOption = (game.selectedOption + 1) % numSaves;
+            game.selectedOption = (game.selectedOption + 1) % 4;
         }
         playMenuChangeSound();
         drawScene();
@@ -569,6 +583,10 @@ void init() {
     initMinFont("./assets/fonts/Rexlia.ttf");
     initAudio();
     loadIcons();
+
+    initObjectList(&objectList);
+    loadObjectFile(&objectList, "./assets/Objects/Player.obj");
+    playerModel = getObjectList(&objectList, 0);
 
     game.currentState = MAIN_MENU;
     game.selectedOption = 0;

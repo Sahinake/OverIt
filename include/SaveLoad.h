@@ -25,8 +25,11 @@ void removeFinishedSaves(const char* directoryPath) ;
 void saveGame(const char* filename, Player* player, Game* game, int elapsedTime);
 void loadGame(const char* filename, Player* player, Game* game);
 int countFilesInDirectory(const char* directoryPath);
+int getSlotFromSaveName(const char* filename);
+void saveSelectedGame(Game* game, Player* player, int elapsedTime);
 void loadSaveSlots(Game* game);
 void loadSelectedGame(Game* game, Player* player);
+void deleteSelectedSave(Game* game);
 void cleanupSaveSlots(Game* game);
 void printSave(const char* filename);
 

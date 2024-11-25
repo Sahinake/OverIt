@@ -3,12 +3,15 @@
 #include <time.h>
 #include <sys/stat.h>  // Para mkdir
 #include <dirent.h>
+#include <ctype.h>
 
 #include "SaveLoad.h"
 #include "Game.h"
 #include "UI.h"
 
 extern int goalDots;
+extern bool inputingSaveName;
+extern char saveName[256];
 
 #define MAX_SAVES 4
 
@@ -91,7 +94,7 @@ void saveGame(const char* filename, Player* player, Game* game, int elapsedTime)
         // Salvar o estado do jogo
         SavedGame savedGame;
         
-        snprintf(savedGame.saveName, sizeof(savedGame.saveName), "MeuSave");  // Nome do save
+        snprintf(savedGame.saveName, sizeof(savedGame.saveName), "%s", filename);  // Nome do save
         savedGame.lastPlayed = time(NULL);  // Salvar a data atual
 
         // Passando as variáveis como parâmetros
@@ -112,6 +115,9 @@ void saveGame(const char* filename, Player* player, Game* game, int elapsedTime)
                 savedGame.maze[i][j] = game->maze[i][j];
             }
         }
+        strncpy(saveName, filename, sizeof(saveName) - 1);
+        saveName[sizeof(saveName) - 1] = '\0';  // Garante que o nome seja NULL-terminated
+
         savedGame.currentState = game->currentState;   
         fwrite(&savedGame, sizeof(SavedGame), 1, file);
         fclose(file);
@@ -171,6 +177,9 @@ void loadGame(const char* filename, Player* player, Game* game) {
             }
         }
 
+        strncpy(saveName, filename, sizeof(saveName) - 1);
+        saveName[sizeof(saveName) - 1] = '\0';  // Garante que o nome seja NULL-terminated
+        
         // Mostrar uma mensagem de sucesso ou algum tipo de confirmação
         printf("Jogo carregado com sucesso de: %s\n", filePath);
     } else {
@@ -201,12 +210,54 @@ int countFilesInDirectory(const char* directoryPath) {
     return fileCount;
 }
 
+int isSlotEmpty(Game* game, int slotIndex) {
+    if (slotIndex < 0 || slotIndex >= MAX_SAVES) {
+        printf("Índice do slot fora do intervalo permitido.\n");
+        return 1;  // Tratar slots fora do intervalo como vazios
+    }
+    return game->slotFiles[slotIndex] == NULL;
+}
+
+void saveSelectedGame(Game* game, Player* player, int elapsedTime) {
+    if (game->selectedOption >= 0 && game->selectedOption < MAX_SAVES) {
+        // Verifica se o slot já possui um save
+        if (!isSlotEmpty(game, game->selectedOption)) {
+            // Exibe mensagem de sobrescrever
+            printf("O slot %d já possui um save.\n", game->selectedOption);
+            return;
+        }
+
+        // Nome do arquivo com base no slot selecionado
+        snprintf(saveName, sizeof(saveName), "Oliver_%d", game->selectedOption + 1); // Gera o nome do arquivo baseado no slot
+
+        // Salva o jogo com o nome gerado
+        saveGame(saveName, player, game, elapsedTime);
+        loadSaveSlots(game);  // Recarrega os slots para atualizar o estado
+        game->currentState = PLAYING;
+    } else {
+        printf("Opção selecionada inválida.\n");
+    }
+}
+
+// Função para extrair o número do slot a partir do nome do arquivo
+int getSlotFromSaveName(const char* filename) {
+    // Supondo que o formato do nome seja "Oliver_##"
+    int slot = -1;
+    while (*filename) {
+        if (isdigit(*filename)) {
+            slot = *filename - '0';  // Extrai o número, assume que é um único dígito
+            break;
+        }
+        filename++;
+    }
+    return slot;  // Retorna o número do slot ou -1 se não encontrar
+}
+
 void loadSaveSlots(Game* game) {
     // Abre a pasta "saves"
     DIR* dir = opendir("./saves");
     if (dir) {
         struct dirent* entry;
-        int slotCount = 0;
         
         // Inicializa os slotFiles
         for (int i = 0; i < MAX_SAVES; i++) {
@@ -214,14 +265,17 @@ void loadSaveSlots(Game* game) {
         }
 
         // Lê o conteúdo da pasta de saves
-        while ((entry = readdir(dir)) != NULL && slotCount < MAX_SAVES) {
+        while ((entry = readdir(dir)) != NULL) {
             if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
                 continue;  // Ignora "." e ".."
             }
 
-            // Armazena o nome do arquivo de save no slot correspondente
-            game->slotFiles[slotCount] = strdup(entry->d_name);  // Aloca e copia o nome
-            slotCount++;
+            // Extrai o slot a partir do nome do arquivo
+            int slot = getSlotFromSaveName(entry->d_name) - 1;
+            if (slot >= 0 && slot < MAX_SAVES) {
+                // Aloca e copia o nome do arquivo para o slot correspondente
+                game->slotFiles[slot] = strdup(entry->d_name);  // Aloca e copia o nome
+            }
         }
         closedir(dir);
     }
@@ -235,6 +289,37 @@ void loadSelectedGame(Game* game, Player* player) {
         } else {
             printf("Nenhum save encontrado nesse slot.\n");
         }
+    }
+}
+
+// Função para apagar o slot de save selecionado
+void deleteSelectedSave(Game* game) {
+    if (game->selectedOption >= 0 && game->selectedOption < MAX_SAVES) {
+        // Verifica se o slot possui um save
+        char* selectedSaveFile = game->slotFiles[game->selectedOption];
+        if (selectedSaveFile != NULL) {
+            // Monta o caminho completo do arquivo de save
+            char filePath[512];
+            snprintf(filePath, sizeof(filePath), "saves/%s", selectedSaveFile);
+
+            // Tenta remover o arquivo de save
+            if (remove(filePath) == 0) {
+                printf("Save '%s' apagado com sucesso.\n", selectedSaveFile);
+                
+                // Libera a memória alocada para o nome do arquivo
+                free(game->slotFiles[game->selectedOption]);
+                game->slotFiles[game->selectedOption] = NULL;
+
+                // Recarrega os slots de save
+                loadSaveSlots(game);
+            } else {
+                printf("Erro ao tentar apagar o save '%s'.\n", selectedSaveFile);
+            }
+        } else {
+            printf("Nenhum save encontrado neste slot.\n");
+        }
+    } else {
+        printf("Índice do slot inválido.\n");
     }
 }
 

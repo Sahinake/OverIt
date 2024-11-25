@@ -243,14 +243,13 @@ void drawNewGameMenu(Game* game) {
     int totalWidth = 2 * iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + getTextWidth(minFont, back_line);
     int startX = (glutGet(GLUT_WINDOW_WIDTH) - totalWidth) / 2;
 
-    drawIcons(icons[0], startX, glutGet(GLUT_WINDOW_HEIGHT) - 100, iconWidth, iconWidth);
+    drawIcons(icons[0], startX, glutGet(GLUT_WINDOW_HEIGHT) - 105, iconWidth, iconWidth);
     renderText(minFont, enter_line, startX + iconWidth + iconSpacing, glutGet(GLUT_WINDOW_HEIGHT) - 100);
 
-    drawIcons(icons[1], startX + iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + iconSpacing, glutGet(GLUT_WINDOW_HEIGHT) - 100, iconWidth, iconWidth);
-    renderText(minFont, back_line, startX + iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + iconSpacing + iconWidth, glutGet(GLUT_WINDOW_HEIGHT) - 90);
+    drawIcons(icons[1], startX + iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + iconSpacing, glutGet(GLUT_WINDOW_HEIGHT) - 105, iconWidth, iconWidth);
+    renderText(minFont, back_line, startX + iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + iconSpacing + iconWidth, glutGet(GLUT_WINDOW_HEIGHT) - 100);
 }
 
-// Função para desenhar o menu de Carregar Jogo
 void drawLoadGameMenu(Game* game) {
     glClear(GL_COLOR_BUFFER_BIT);
     glColor3f(1.0f, 1.0f, 1.0f);
@@ -278,23 +277,21 @@ void drawLoadGameMenu(Game* game) {
     int yOffset = 0;
     char slotText[50];
 
-    // Abre a pasta "saves"
-    DIR* dir = opendir("./saves");
-    int saveCount = 0;
-    if (dir) {
-        struct dirent* entry;
-        while ((entry = readdir(dir)) != NULL && saveCount < totalSlots) {
-            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-                continue;
-            }
+    // Carregar os slots usando a função loadSaveSlots
+    loadSaveSlots(game);
 
-            float xStart = 0.25f * glutGet(GLUT_WINDOW_WIDTH);
-            float yStart = 0.15f * glutGet(GLUT_WINDOW_HEIGHT) + saveCount * (slotHeight + 0.02f * glutGet(GLUT_WINDOW_HEIGHT));
+    // Loop para desenhar os slots de save
+    for (int saveCount = 0; saveCount < totalSlots; saveCount++) {
+        float xStart = 0.25f * glutGet(GLUT_WINDOW_WIDTH);
+        float yStart = 0.15f * glutGet(GLUT_WINDOW_HEIGHT) + saveCount * (slotHeight + 0.02f * glutGet(GLUT_WINDOW_HEIGHT));
 
+        // Caso o slot esteja ocupado, desenhe com a cor indicada
+        if (game->slotFiles[saveCount] != NULL) {
             // Montar caminho completo e abrir arquivo
             char filePath[512];
-            snprintf(filePath, sizeof(filePath), "./saves/%s", entry->d_name);
+            snprintf(filePath, sizeof(filePath), "./saves/%s", game->slotFiles[saveCount]);
             FILE* file = fopen(filePath, "rb");
+
             if (file != NULL) {
                 SavedGame savedGame;
                 fread(&savedGame, sizeof(SavedGame), 1, file);
@@ -314,66 +311,46 @@ void drawLoadGameMenu(Game* game) {
                 // Formatar texto e renderizar
                 char formattedTime[50];
                 strftime(formattedTime, sizeof(formattedTime), "%d/%m/%Y %H:%M:%S", localtime(&savedGame.lastPlayed));
-                renderText(medFont, savedGame.saveName,  xStart + 20, yStart + slotHeight / 2 + 8 + yOffset);
-                renderText(minFont, formattedTime, xStart + 20, yStart + slotHeight / 2 + 28 + yOffset);
-
-                game->slotFiles[saveCount] = malloc(256 * sizeof(char));  // Aloca 256 bytes para o nome do arquivo
-                if (game->slotFiles[saveCount] == NULL) {
-                    perror("Erro ao alocar memória para slot de save");
-                    exit(1);
-                }
-
-                // Salva o nome do arquivo para o slot
-                snprintf(game->slotFiles[saveCount], 256, "%s", entry->d_name);
+                renderText(medFont, savedGame.saveName,  xStart + 20, yStart + slotHeight / 2 + yOffset);
+                renderText(minFont, formattedTime, xStart + 20, yStart + slotHeight / 2 + 20 + yOffset);
 
                 yOffset += 20;
-                saveCount++;
             }
+        } else {
+            // Caso o slot esteja vazio, desenha "Vazio"
+            glColor3f((saveCount == selectedSlot) ? 1.0f : 1.0f, 
+                      (saveCount == selectedSlot) ? 0.5f : 1.0f, 
+                      (saveCount == selectedSlot) ? 0.0f : 1.0f);
+            glBegin(GL_LINE_LOOP);
+                glVertex2f(xStart, yStart + yOffset);
+                glVertex2f(xStart + slotWidth, yStart + yOffset);
+                glVertex2f(xStart + slotWidth, yStart + slotHeight + yOffset);
+                glVertex2f(xStart, yStart + slotHeight + yOffset);
+            glEnd();
+
+            snprintf(slotText, sizeof(slotText), "Slot %d: Vazio", saveCount + 1);
+            renderText(medFont, slotText, xStart + 20, yStart + slotHeight / 2 + 8 + yOffset);
+
+            yOffset += 20;
         }
-        closedir(dir);
     }
 
-    // Preenche os slots restantes com "vazio"
-    while (saveCount < totalSlots) {
-        float xStart = 0.25f * glutGet(GLUT_WINDOW_WIDTH);
-        float yStart = 0.15f * glutGet(GLUT_WINDOW_HEIGHT) + saveCount * (slotHeight + 0.02f * glutGet(GLUT_WINDOW_HEIGHT));
+    // Desenhar ícones e textos adicionais
+    char enter_line[] = "SELECT";
+    char back_line[] = "BACK";
 
-        glColor3f((saveCount == selectedSlot) ? 1.0f : 1.0f, 
-                  (saveCount == selectedSlot) ? 0.5f : 1.0f, 
-                  (saveCount == selectedSlot) ? 0.0f : 1.0f);
-        glBegin(GL_LINE_LOOP);
-            glVertex2f(xStart, yStart + yOffset);
-            glVertex2f(xStart + slotWidth, yStart + yOffset);
-            glVertex2f(xStart + slotWidth, yStart + slotHeight + yOffset);
-            glVertex2f(xStart, yStart + slotHeight + yOffset);
-        glEnd();
+    int iconWidth = 50;
+    int iconSpacing = 10;  // Distância entre os ícones
+    int totalWidth = 2 * iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + getTextWidth(minFont, back_line);
+    int startX = (glutGet(GLUT_WINDOW_WIDTH) - totalWidth) / 2;
 
-        snprintf(slotText, sizeof(slotText), "Slot %d: Vazio", saveCount + 1);
-        renderText(medFont, slotText, xStart + 20, yStart + slotHeight / 2 + 8 + yOffset);
+    drawIcons(icons[0], startX, glutGet(GLUT_WINDOW_HEIGHT) - 105, iconWidth, iconWidth);
+    renderText(minFont, enter_line, startX + iconWidth + iconSpacing, glutGet(GLUT_WINDOW_HEIGHT) - 100);
 
-        yOffset += 20;
-        saveCount++;
-    }
-
-    // Mensagem adicional
-char enter_line[] = "SELECT";
-char back_line[] = "BACK";
-
-// Calculando a largura total (ícones + textos)
-int iconWidth = 50;
-int iconSpacing = 10;  // Distância entre os ícones
-
-// Calculando a posição X para centralizar os ícones e textos
-int totalWidth = 2 * iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + getTextWidth(minFont, back_line);
-int startX = (glutGet(GLUT_WINDOW_WIDTH) - totalWidth) / 2;  // Posição inicial X para centralizar
-
-// Desenhar ícones e textos
-drawIcons(icons[0], startX, glutGet(GLUT_WINDOW_HEIGHT) - 105, iconWidth, iconWidth);
-renderText(minFont, enter_line, startX + iconWidth + iconSpacing, glutGet(GLUT_WINDOW_HEIGHT) - 100);
-
-drawIcons(icons[1], startX + iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + iconSpacing, glutGet(GLUT_WINDOW_HEIGHT) - 105, iconWidth, iconWidth);
-renderText(minFont, back_line, startX + iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + iconSpacing + iconWidth, glutGet(GLUT_WINDOW_HEIGHT) - 100);
+    drawIcons(icons[1], startX + iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + iconSpacing, glutGet(GLUT_WINDOW_HEIGHT) - 105, iconWidth, iconWidth);
+    renderText(minFont, back_line, startX + iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + iconSpacing + iconWidth, glutGet(GLUT_WINDOW_HEIGHT) - 100);
 }
+
 
 // Função para desenhar o menu de Ranking
 void drawRankingMenu(Game* game) {
