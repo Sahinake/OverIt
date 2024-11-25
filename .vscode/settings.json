@@ -5,13 +5,15 @@
         "glut.h": "c",
         "stdio.h": "c",
         "dots.h": "c",
-        "maze.h": "c",
+        "game.h": "c",
         "stdbool.h": "c",
         "freeglut.h": "c",
         "time.h": "c",
         "ui.h": "c",
         "ftgl.h": "c",
         "sound.h": "c",
-        "miniaudio.h": "c"
+        "miniaudio.h": "c",
+        "textureloader.h": "c",
+        "saveload.h": "c"
     }
 }

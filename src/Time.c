@@ -8,6 +8,7 @@
 // Função para iniciar o tempo do jogo
 void startGameTimer() {
     startTime = time(NULL);  // Tempo inicial
+    lastSaveTime = startTime;  // Inicializa o tempo de último save como o tempo inicial do jogo
     glutTimerFunc(1000, updateGameTime, 0);  // Agenda próxima atualização em 1 segundo
 }
 

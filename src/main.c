@@ -1,18 +1,21 @@
 #include <FTGL/ftgl.h>
 #include <GL/glut.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
 #include <stdbool.h>
-#include <math.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>  // Para usleep() ou sleep()
+#include <dirent.h>  // Para listar arquivos na pasta
+#include <stdio.h>
+#include <time.h>
+#include <math.h>
 
-#include "Maze.h"
 #include "UI.h"
+#include "Game.h"
 #include "Time.h"
-#include "miniaudio.h"
 #include "Sound.h"
+#include "miniaudio.h"
 #include "stb_image.h"
+#include "SaveLoad.h"
 #include "textureloader.h"
 
 #define WIDTH 20                        // Largura do labirinto
@@ -23,15 +26,15 @@
 #define MAX_BATTERY 70.0f               // Capacidade máxima da lanterna
 #define MAX_HEALTH 100.0f               // Capacidade máxima da vida
 #define MAX_SANITY 100.0f               // Capacidade máxima da sanidade
-#define BATTERY_DECREASE_RATE 0.01f    // Taxa de diminuição da bateria por atualização de frame
+#define BATTERY_DECREASE_RATE 0.01f     // Taxa de diminuição da bateria por atualização de frame
 #define HEALTH_DECREASE_RATE 0.02f      // Taxa de diminuição da bateria por atualização de frame
 #define SANITY_DECREASE_RATE 0.02f      // Taxa de diminuição da bateria por atualização de frame
 #define NUM_MENU_OPTIONS 5              // Opções do Menu
 #define M_PI 3.14159265358979323846
 #define STB_IMAGE_IMPLEMENTATION
 #define SOUND_POOL_SIZE 15
+#define MAX_SAVES 4                     // Limite máximo de saves permitido
 
-int maze[WIDTH][HEIGHT];
 int maze_widht = WIDTH, maze_height = HEIGHT;
 int window_width = 800, window_height = 600;
 
@@ -42,22 +45,21 @@ float lightDirX = 0.0f;
 float lightDirZ = 1.0f;                 // Inicialmente apontando para "frente"
 float maxDistance = 5.0f;               // Distância máxima para a lanterna
 
-float batteryCharge = MAX_BATTERY;                  // Bateria começa cheia
-float batteryPercentage = MAX_BATTERY_PERCENTAGE;   // A bateria começa com 100%
 float batteryDecrease = BATTERY_DECREASE_RATE;
 
 // Variáveis globais para o tempo
 time_t startTime;
 time_t currentTime;
+time_t lastSaveTime;  // Variável para armazenar o tempo do último save
+int numSaves = 0;
+
 int elapsedTime;
+int elapsedSaveTime = 0;
 int max_font_height = 35;
 int med_font_height = 20;
 int min_font_height = 14;
 
-Dot dots[DOT_COUNT];
-Battery batteries[BATTERY_COUNT];
-Player player; 
-Exit exitDoor;
+Player player;
 
 ma_engine engine;
 ma_sound soundAmbient;
@@ -72,12 +74,16 @@ float volumeEffects = 0.6f;
 float volumeMusic = 1.0f;
 float volumeAmbient = 0.4f;
 int isMainMenuMusicOn = 0;
+int wasTheGameSaved = 0;
 GLuint backgroundTexture;
 
 bool isGamePaused = false;
 
 // Instância global do jogo
 Game game;
+GLuint icons[2];
+
+int newGame = -1;
 
 // Declaração dos ponteiros para as fontes
 FTGLfont *maxFont;
@@ -118,28 +124,26 @@ void updateLighting() {
     GLfloat ambientLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
     GLfloat lightIntensity;
 
-    if(batteryCharge == 0 || player.flashlight == 0) {
+    if(player.flashlightCharge == 0 || player.flashlight == 0) {
         lightIntensity = 0.0f;
     }
     else {
-        // A intensidade da luz vai diminuir com a carga da bateria
-        lightIntensity = batteryCharge / 100.0f; // A intensidade é proporcional à carga da bateria
+        lightIntensity = player.flashlightCharge / 100.0f; // A intensidade é proporcional à carga da bateria
     }
     
     GLfloat diffuseLight[] = { lightIntensity, lightIntensity, lightIntensity, 1.0f };  // A luz fica mais fraca à medida que a bateria acaba
     GLfloat specularLight[] = { lightIntensity, lightIntensity, lightIntensity, 1.0f };
 
     // Ajuste do brilho do material
-    GLfloat shininess = 100.0f;         // Brilho médio
-    GLfloat spotExponent = 10.0f;       // Controla a suavização da borda do cone (quanto maior, mais nítido)
-    GLfloat spotCutoff = 30.0f;         // Ângulo do cone de iluminação (quanto menor, mais estreito o cone)
+    GLfloat shininess = 100.0f;         
+    GLfloat spotExponent = 10.0f;       
+    GLfloat spotCutoff = 30.0f;       
 
     // Fatores de atenuação baseados em maxDistance
     float constantAttenuation = 1.0f;
-    float linearAttenuation = 0.1f / maxDistance;                       // Ajuste linear para atingir 0 em maxDistance
-    float quadraticAttenuation = 0.05f / (maxDistance * maxDistance);   // Ajuste quadrático para suavizar o decaimento
+    float linearAttenuation = 0.1f / maxDistance;                      
+    float quadraticAttenuation = 0.05f / (maxDistance * maxDistance);   
 
-    // Chamando a função que configura a iluminação
     setLighting(lightPos, lightDir, ambientLight, diffuseLight, specularLight, shininess, spotExponent);
 
     // Configura a atenuação da luz
@@ -153,11 +157,11 @@ void updateLighting() {
 
 // Função para verificar a colisão com as paredes considerando o raio da esfera
 bool checkCollision(float newX, float newZ) {
-    int gridX = (int)(newX);  // Convertendo a posição X para índices da grid
-    int gridZ = (int)(newZ);  // Convertendo a posição Z para índices da grid
+    int gridX = (int)(newX);  
+    int gridZ = (int)(newZ);  
 
     if (gridX >= 0 && gridX < WIDTH && gridZ >= 0 && gridZ < HEIGHT) {
-        if (maze[gridX][gridZ] == 1) {  
+        if (game.maze[gridX][gridZ] == 1) {  
             return true;              
         }
     } else {
@@ -192,23 +196,66 @@ void movePlayer() {
             player.moving = 0;  // Interrompe o movimento quando ambos os eixos atingem o destino
         }
 
-        if(maze[player.x][player.y] == 2 || maze[player.x][player.y] == 3) {
-            checkObjectCollision();
+        if(game.maze[player.x][player.y] == 2 || game.maze[player.x][player.y] == 3) {
+            checkObjectCollision(&game, &player);
         }
-
     }
 
     glutPostRedisplay();
 }
 
+// Configurações de inicialização do OpenGL para 3D
+void initPlaying() {
+    if (game.currentState == PLAYING) {
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glEnable(GL_LIGHTING);  // Ativa a iluminação
+        glEnable(GL_LIGHT0);    // Ativa a luz 0
+        initializeRendering();  
+        if(newGame == 1) {
+            initGame(&game, &player);
+        }
+        startGameTimer();  // Inicia o tempo no começo do jogo
+        playAmbientMusic();
+    }
+}
+
+// Função para desenhar a tela dependendo do estado atual
+void drawScene() {
+    switch (game.currentState) {
+        case MAIN_MENU:
+            drawMainMenu(&game);
+            break;
+        case NEW_GAME_MENU:
+            drawNewGameMenu(&game);
+            break;
+        case LOAD_GAME_MENU:
+            drawLoadGameMenu(&game);
+            break;
+        case RANKING_MENU:
+            drawRankingMenu(&game);
+            break;
+        case OPTIONS_MENU:
+            drawOptionsMenu(&game);
+            break;
+        case PLAYING:
+            initPlaying();
+            break;
+        default:
+            break;
+    }
+}
+
 // Função para renderizar a cena
 void display() {
-    if(game.currentState == MAIN_MENU) {
+    if(game.currentState != PLAYING && game.currentState != FINISHED) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glLoadIdentity();
         setup2DProjection();
         glPushMatrix();     // Salva o estado atual da transformação
-        drawMainMenu();
+        drawScene();
         if(isMainMenuMusicOn == 0) {
             playMenuMusic();
             isMainMenuMusicOn = 1;
@@ -230,20 +277,21 @@ void display() {
             movePlayer();     // Move o jogador de acordo com a direção e velocidade
         } 
 
-        updateLighting();     // Atualiza a iluminação de acordo com o jogador
-        renderScene();        // Renderiza o jogador e os dots
-        glPopMatrix();        // Restaura o estado da transformação
+        updateLighting();                   // Atualiza a iluminação de acordo com o jogador
+        renderScene(&game, &player);        // Renderiza o jogador e os dots
+        glPopMatrix();                      // Restaura o estado da transformação
 
         // Configura a projeção 2D para renderizar a UI
         setup2DProjection();
-        glPushMatrix(); // Salva o estado atual da transformação
-        renderDotCount(); // Renderiza o contador de dots
-        renderGameTime();  // Renderiza o tempo de jogo
-        renderLevel();
-        renderBatteryUI();
-        renderSanityUI();
-        renderHealthUI();
-        glPopMatrix(); // Restaura o estado de transformação
+        glPushMatrix();             
+        renderDotCount();           // Renderiza o contador de dots
+        renderGameTime();           // Renderiza o tempo de jogo
+        renderLevel(&player);
+        updateBattery(&player);
+        renderBatteryUI(&player);
+        renderSanityUI(&player);
+        renderHealthUI(&player);
+        glPopMatrix(); 
 
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
@@ -254,80 +302,8 @@ void display() {
     glutSwapBuffers();
 }
 
-// Configurações de inicialização do OpenGL para 3D
-void initPlaying() {
-    if (game.currentState == PLAYING) {
-        glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_LESS);
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
-        glEnable(GL_LIGHTING); // Ativa a iluminação
-        glEnable(GL_LIGHT0);    // Ativa a luz 0
-        initializeRendering();
-        initMaze();
-        initializePlayer();
-        generateMaze(1, 1);
-        spawnPlayer();
-        spawnDots();
-        spawnBatteries();
-        generateExit();
-        startGameTimer();  // Inicia o tempo no começo do jogo
-        playAmbientMusic();
-    }
-}
-
-// Função para desenhar a tela dependendo do estado atual
-void drawScene() {
-    switch (game.currentState) {
-        case MAIN_MENU:
-            drawMainMenu();
-            break;
-        case NEW_GAME_MENU:
-            drawNewGameMenu();
-            break;
-        case LOAD_GAME_MENU:
-            drawLoadGameMenu();
-            break;
-        case RANKING_MENU:
-            drawRankingMenu();
-            break;
-        case OPTIONS_MENU:
-            drawOptionsMenu();
-            break;
-        case PLAYING:
-            initPlaying();
-            break;
-        default:
-            break;
-    }
-}
-
 // Função para capturar o pressionamento do teclado e definir a direção de movimento
 void keyboardDown(unsigned char key, int x, int y) {
-    // if(key == 's' || key == 'S') {
-    //     player.moveDirX = 0.0f; 
-    //     player.moveDirY = -0.1f; 
-    //     lightDirX = 0.0f; 
-    //     lightDirZ = -1.0f;
-    // }
-    // else if(key == 'w' || key == 'W') {
-    //     player.moveDirX = 0.0f; 
-    //     player.moveDirY = 0.1f;
-    //     lightDirX = 0.0f; 
-    //     lightDirZ = 1.0f;
-    // }
-    // else if(key == 'a' || key == 'A') {
-    //     player.moveDirX = 0.1f; 
-    //     player.moveDirY = 0.0f;
-    //     lightDirX = 1.0f; 
-    //     lightDirZ = 0.0f; 
-    // }
-    // else if(key == 'd' || key == 'D') {
-    //     player.moveDirX = -0.1f; 
-    //     player.moveDirY = 0.0f;
-    //     lightDirX = -1.0f; 
-    //     lightDirZ = 0.0f; 
-    // }
     float moveSpeed = 0.1f;  // Velocidade de movimento por delta de tempo (por segundo)
     float posX = player.posX;
     float posZ = player.posZ;
@@ -375,25 +351,25 @@ void keyboardDown(unsigned char key, int x, int y) {
         player.flashlight = player.flashlight == 1 ? 0 : 1;
     }
     else if(key == '+') {
-        if (batteryCharge < 90.0f) {
-            batteryCharge += 5.0f; 
-            batteryPercentage += 7.143f; // Aumenta o raio da luz
+        if (player.flashlightCharge < 90.0f) {
+            player.flashlightCharge += 5.0f; 
+            player.flashlightPercentage += 7.143f; // Aumenta o raio da luz
         }
     }
     else if(key == '-') {
-        if (batteryCharge > 10.0f) {
-            batteryCharge -= 5.0f; 
-            batteryPercentage -= 7.143f; // Diminui o raio da luz
+        if (player.flashlightCharge > 10.0f) {
+            player.flashlightCharge -= 5.0f; 
+            player.flashlightPercentage -= 7.143f; // Diminui o raio da luz
         }
     }
     else if(key == 'r' || key == 'R') {
         initializeRendering();
-        initMaze();
-        generateMaze(1, 1);
-        spawnPlayer();
-        spawnDots();
-        spawnBatteries();
-        generateExit();
+        initMaze(&game);
+        generateMaze(&game, 1, 1);
+        spawnPlayer(&game, &player);
+        spawnDots(&game);
+        spawnBatteries(&game);
+        generateExit(&game);
     }  
     else if(key == 27) {
         switch (game.currentState) {
@@ -452,28 +428,17 @@ void keyboardDown(unsigned char key, int x, int y) {
                 playMenuSelectSound();
                 break;
             case NEW_GAME_MENU:
-                if (game.selectedOption == 0) {
-                    game.currentState = PLAYING;  // Começar o jogo
-                    playMenuSelectSound();
-                } else {
-                    game.currentState = MAIN_MENU;
-                    game.selectedOption = 0;
-                    playMenuBackSound();
-                }
+                newGame = 1;
+                //game.currentState = PLAYING;  // Começar o jogo
+                playMenuSelectSound();
                 break;
             case LOAD_GAME_MENU:
-                if (game.selectedOption == 0) {
-                    // Lógica para carregar o jogo
-                    playMenuSelectSound();
-                } else {
-                    game.currentState = MAIN_MENU;
-                    game.selectedOption = 1;
-                    playMenuBackSound();
-                }
+                newGame = 0;
+                loadSelectedGame(&game, &player);
+                //printSave("game_save.dat");
                 break;
             case RANKING_MENU:
                 if (game.selectedOption == 0) {
-                    // Lógica para carregar o jogo
                     playMenuSelectSound();
                 } else {
                     game.currentState = MAIN_MENU;
@@ -482,7 +447,6 @@ void keyboardDown(unsigned char key, int x, int y) {
                 }
             case OPTIONS_MENU:
                 if (game.selectedOption == 0) {
-                    // Lógica para carregar o jogo
                     playMenuSelectSound();
                 } else {
                     game.currentState = MAIN_MENU;
@@ -529,18 +493,19 @@ void keyboardNavigation(int key, int x, int y) {
     }
     else if(game.currentState == NEW_GAME_MENU) {
         if (key == GLUT_KEY_UP) {
-            game.selectedOption = (game.selectedOption - 1 + 2) % 2;
+            game.selectedOption = (game.selectedOption - 1 + 4) % 4;
         } else if (key == GLUT_KEY_DOWN) {
-            game.selectedOption = (game.selectedOption + 1) % 2;
+            game.selectedOption = (game.selectedOption + 1) % 4;
         }
         playMenuChangeSound();
         drawScene();
     }
-    else if(game.currentState == LOAD_GAME_MENU) {
+    else if (game.currentState == LOAD_GAME_MENU) {
+        numSaves = countFilesInDirectory("./saves");
         if (key == GLUT_KEY_UP) {
-            game.selectedOption = (game.selectedOption - 1 + 2) % 2;
+            game.selectedOption = (game.selectedOption - 1 + numSaves) % numSaves;
         } else if (key == GLUT_KEY_DOWN) {
-            game.selectedOption = (game.selectedOption + 1) % 2;
+            game.selectedOption = (game.selectedOption + 1) % numSaves;
         }
         playMenuChangeSound();
         drawScene();
@@ -583,23 +548,50 @@ void reshape(int w, int h) {
     // Ajusta a perspectiva de acordo com a proporção
     gluPerspective(45.0f, aspectRatio, 0.1f, 100.0f);
 
+    if(game.currentState != PLAYING) {
+        drawScene();
+    }
     glMatrixMode(GL_MODELVIEW);
+}
+
+void init() {
+    // Inicialização do OpenGL
+    glClear(GL_COLOR_BUFFER_BIT);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);  // Cor de fundo (preto)
+
+    setup2DProjection();
+
+    // Carregar a imagem de fundo
+    backgroundTexture = loadTexture("./assets/Images/Background.png");
+
+    initMaxFont("./assets/fonts/Rexlia.ttf");  
+    initMedFont("./assets/fonts/Rexlia.ttf");  
+    initMinFont("./assets/fonts/Rexlia.ttf");
+    initAudio();
+    loadIcons();
+
+    game.currentState = MAIN_MENU;
+    game.selectedOption = 0;
+    
+    // Carrega os arquivos de save nos slots
+    loadSaveSlots(&game);
 }
 
 // Função de callback do GLUT para o loop do jogo
 void update(int value) {
     if(game.currentState == PLAYING) {
-        updateBattery();
-        updatePlayerStatus();
+        updatePlayerStatus(&player);
 
         if(goalDots == 0) {
-            updateGame();
+            if(updateGame(&game, &player) == 1) {
+                wasTheGameSaved = 0;
+            }
         }
     }
 
     // Define o próximo loop de atualização (geralmente 16ms para 60fps)
     glutPostRedisplay();
-    glutTimerFunc(4, update, 0); // Chama `update()` a cada 16ms (aproximadamente 60fps)
+    glutTimerFunc(8, update, 0); // Chama `update()` a cada 16ms (aproximadamente 60fps)
 }
 
 int main(int argc, char** argv) {
@@ -611,19 +603,17 @@ int main(int argc, char** argv) {
     glutInitWindowSize(800, 600); // Tamanho inicial da janela
     glutCreateWindow("Maze Game");
 
-    // Configura o loop de atualização
-    glutTimerFunc(4, update, 0); // Define o intervalo para 25ms (aproximadamente 40fps)
+    init();
 
-    // Funções de inicialização do OpenGL
-    initGame();
+    // Configura o loop de atualização
+    glutTimerFunc(8, update, 0); 
 
     // Registra as funções de callback
     glutDisplayFunc(display);
-    // Define callbacks de teclado
-    glutSpecialFunc(keyboardNavigation);  // Função para as teclas de seta
-    glutKeyboardFunc(keyboardDown);  // Para quando a tecla é pressionada
-    glutKeyboardUpFunc(keyboardUp);   // Para quando a tecla é liberada
-    glutReshapeFunc(reshape); // Registra a função de reshape
+    glutSpecialFunc(keyboardNavigation);  
+    glutKeyboardFunc(keyboardDown);  
+    //glutKeyboardUpFunc(keyboardUp);   // Para quando a tecla é liberada
+    glutReshapeFunc(reshape); 
     
     // Loop principal do GLUT
     glutMainLoop();

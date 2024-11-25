@@ -3,21 +3,22 @@
 #include <stdio.h>
 #include <time.h>
 #include <math.h>
+#include <dirent.h>
 
 #include "UI.h"
-#include "Maze.h"
 #include "Sound.h"
 #include "stb_image.h"
 #include "textureloader.h"
+#include "SaveLoad.h"
 
 // Declaração dos ponteiros para as fontes
 extern FTGLfont *maxFont;
 extern FTGLfont *medFont;
 extern FTGLfont *minFont;
-
-extern Game game;
+extern GLuint icons[10];
 
 extern GLuint backgroundTexture;
+extern int wasTheGameSaved;
 
 // Vértices do triângulo
 Point triangle[3] = {
@@ -25,6 +26,37 @@ Point triangle[3] = {
     {40, 80},    // Vértice inferior esquerdo
     {60, 80}     // Vértice inferior direito
 };
+
+void loadIcons() {
+    icons[0] = loadTexture("assets/Images/Enter.png");      // Ícone da tecla Enter
+    icons[1] = loadTexture("assets/Images/Esc.png");        // Ícone da tecla ESC
+}
+
+void drawIcons(GLuint icon, float imagePosX, float imagePosY, int imageWidth, int imageHeight) {
+    // Ativar texturas
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, icon);  // Usa a textura carregada
+
+    // Ativar o blending para lidar com a transparência
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Desenhar a imagem como um quadrado com a textura
+    glColor3f(1.0f, 1.0f, 1.0f);
+    glBegin(GL_QUADS);
+        // Coordenadas de textura ajustadas para não inverter a imagem
+        glTexCoord2f(0.0f, 0.0f); glVertex2f(imagePosX, imagePosY - imageHeight / 2);  // Inferior esquerdo
+        glTexCoord2f(1.0f, 0.0f); glVertex2f(imagePosX + imageWidth, imagePosY - imageHeight / 2);  // Inferior direito
+        glTexCoord2f(1.0f, 1.0f); glVertex2f(imagePosX + imageWidth, imagePosY + imageHeight / 2);  // Superior direito
+        glTexCoord2f(0.0f, 1.0f); glVertex2f(imagePosX, imagePosY + imageHeight / 2);  // Superior esquerdo
+    glEnd();
+
+    // Desativar o blending após desenhar a textura
+    glDisable(GL_BLEND);
+
+    // Desativar texturas
+    glDisable(GL_TEXTURE_2D);
+}
 
 // Função de inicialização da fonte
 void initMaxFont(const char* fontPath) {
@@ -40,27 +72,23 @@ void initMaxFont(const char* fontPath) {
 }
 
 void initMedFont(const char* fontPath) {
-    // Carrega a fonte usando FTGLPixmapFont
     medFont = ftglCreatePixmapFont(fontPath);
     if (medFont == NULL) {
         fprintf(stderr, "Erro ao carregar a fonte: %s\n", fontPath);
-        exit(1);  // Encerrar se houver erro no carregamento da fonte
+        exit(1);
     }
     
-    // Define o tamanho da fonte
-    ftglSetFontFaceSize(medFont, med_font_height, med_font_height);  // Tamanho da fonte em pixels
+    ftglSetFontFaceSize(medFont, med_font_height, med_font_height); 
 }
 
 void initMinFont(const char* fontPath) {
-    // Carrega a fonte usando FTGLPixmapFont
     minFont = ftglCreatePixmapFont(fontPath);
     if (minFont == NULL) {
         fprintf(stderr, "Erro ao carregar a fonte: %s\n", fontPath);
-        exit(1);  // Encerrar se houver erro no carregamento da fonte
+        exit(1);
     }
     
-    // Define o tamanho da fonte
-    ftglSetFontFaceSize(minFont, min_font_height, min_font_height);  // Tamanho da fonte em pixels
+    ftglSetFontFaceSize(minFont, min_font_height, min_font_height); 
 }
 
 // Função para renderizar o texto na tela
@@ -86,25 +114,14 @@ float getTextWidth(FTGLfont *font, const char* text) {
     return width;
 }
 
-// Função para inicializar o jogo
-void initGame() {
-    // Inicialização do OpenGL
-    glClear(GL_COLOR_BUFFER_BIT);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);  // Cor de fundo (preto)
-
-    setup2DProjection();
-
-    // Carregar a imagem de fundo
-    backgroundTexture = loadTexture("./assets/Images/Background.png");
-
-    initMaxFont("./fonts/Rexlia.ttf");  
-    initMedFont("./fonts/Rexlia.ttf");  
-    initMinFont("./fonts/Rexlia.ttf");
-    initAudio();
-
-    game.currentState = MAIN_MENU;
-    game.selectedOption = 0;
-    glutPostRedisplay();
+void printMaze(Game* game) {
+    for (int i = 0; i < WIDTH; i++) {
+        for (int j = 0; j < HEIGHT; j++) {
+            printf("%d ", game->maze[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n ========================== \n");
 }
 
 // Função para desenhar a textura no fundo
@@ -126,7 +143,7 @@ void drawBackground(GLuint texture) {
 }
 
 // Função para desenhar o menu principal
-void drawMainMenu() {
+void drawMainMenu(Game* game) {
     glClear(GL_COLOR_BUFFER_BIT);
     glColor3f(1.0f, 1.0f, 1.0f);
     drawBackground(backgroundTexture);
@@ -150,7 +167,7 @@ void drawMainMenu() {
     char *menuOptions[] = {"New Game", "Load Game", "Ranking", "Options", "Exit"};
     
     for (int i = 0; i < 5; i++) {
-        if (i == game.selectedOption) {
+        if (i == game->selectedOption) {
             glColor3f(1.0f, 0.5f, 0.0f);  // Cor de destaque para a opção selecionada
         } else {
             glColor3f(1.0f, 1.0f, 1.0f);  // Cor padrão
@@ -164,49 +181,77 @@ void drawMainMenu() {
     glutSwapBuffers();
 }
 
-// Função para desenhar o menu de Novo Jogo
-void drawNewGameMenu() {
+void drawNewGameMenu(Game* game) {
     glClear(GL_COLOR_BUFFER_BIT);
     glColor3f(1.0f, 1.0f, 1.0f);
     drawBackground(backgroundTexture);
 
-    // Configuração para desenhar com transparência
+    // Configuração para transparência
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Desenha o quadrado preto translúcido
-    glColor4f(0.0f, 0.0f, 0.0f, 0.5f);  // Preto com 50% de transparência
+    // Fundo translúcido
+    glColor4f(0.0f, 0.0f, 0.0f, 0.5f);
     glBegin(GL_QUADS);
-        glVertex2f(0.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior esquerdo
-        glVertex2f(300.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior direito
-        glVertex2f(300.0f, 0.0f);  // Canto superior direito
-        glVertex2f(0.0f, 0.0f);  // Canto superior esquerdo
+        glVertex2f(0.0f, glutGet(GLUT_WINDOW_HEIGHT));
+        glVertex2f(glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
+        glVertex2f(glutGet(GLUT_WINDOW_WIDTH), 0.0f);
+        glVertex2f(0.0f, 0.0f);
     glEnd();
-
-    // Desabilita o blending após desenhar
     glDisable(GL_BLEND);
-    
-    // Exemplo de opções para o Menu de Novo Jogo
-    char *menuOptions[] = {"Start New Game", "Back"};
-    
-    for (int i = 0; i < 2; i++) {
-        if (i == game.selectedOption) {
-            glColor3f(1.0f, 0.5f, 0.0f);  // Cor de destaque para a opção selecionada
+
+    int totalSlots = 4;  // Número total de slots de save
+    int selectedSlot = game->selectedOption;  // Índice do slot selecionado
+    float slotHeight = 0.1f * glutGet(GLUT_WINDOW_HEIGHT);
+    float slotWidth = 0.5f * glutGet(GLUT_WINDOW_WIDTH);
+    int yOffset = 0;
+    char slotText[50];
+
+    // Itera pelos slots e exibe as informações
+    for (int i = 0; i < totalSlots; i++) {
+        float xStart = 0.25f * glutGet(GLUT_WINDOW_WIDTH);
+        float yStart = 0.15f * glutGet(GLUT_WINDOW_HEIGHT) + i * (slotHeight + 0.02f * glutGet(GLUT_WINDOW_HEIGHT));
+
+        glColor3f((i == selectedSlot) ? 1.0f : 1.0f,
+                  (i == selectedSlot) ? 0.5f : 1.0f,
+                  (i == selectedSlot) ? 0.0f : 1.0f);
+        glBegin(GL_LINE_LOOP);
+            glVertex2f(xStart, yStart + yOffset);
+            glVertex2f(xStart + slotWidth, yStart + yOffset);
+            glVertex2f(xStart + slotWidth, yStart + slotHeight + yOffset);
+            glVertex2f(xStart, yStart + slotHeight + yOffset);
+        glEnd();
+
+        // Renderiza texto do slot
+        if (game->slotFiles[i] != NULL) {
+            snprintf(slotText, sizeof(slotText), "Slot %d: %s", i + 1, game->slotFiles[i]);
+            renderText(medFont, slotText, xStart + 20, yStart + slotHeight / 2 + 8 + yOffset);
         } else {
-            glColor3f(1.0f, 1.0f, 1.0f);  // Cor padrão
+            snprintf(slotText, sizeof(slotText), "Slot %d: Vazio", i + 1);
+            renderText(medFont, slotText, xStart + 20, yStart + slotHeight / 2 + 8 + yOffset);
         }
 
-        float xPos = 70.0f;
-        float yPos = (glutGet(GLUT_WINDOW_HEIGHT) / 2) + (i * 50);
-        renderText(medFont, menuOptions[i], xPos, yPos);  // Substituir o glutBitmapCharacter
+        yOffset += 20;
     }
 
-    glutSwapBuffers();
-}
+    // Mensagens de instrução
+    char enter_line[] = "SELECT";
+    char back_line[] = "BACK";
 
+    int iconWidth = 50;
+    int iconSpacing = 10;
+    int totalWidth = 2 * iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + getTextWidth(minFont, back_line);
+    int startX = (glutGet(GLUT_WINDOW_WIDTH) - totalWidth) / 2;
+
+    drawIcons(icons[0], startX, glutGet(GLUT_WINDOW_HEIGHT) - 100, iconWidth, iconWidth);
+    renderText(minFont, enter_line, startX + iconWidth + iconSpacing, glutGet(GLUT_WINDOW_HEIGHT) - 100);
+
+    drawIcons(icons[1], startX + iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + iconSpacing, glutGet(GLUT_WINDOW_HEIGHT) - 100, iconWidth, iconWidth);
+    renderText(minFont, back_line, startX + iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + iconSpacing + iconWidth, glutGet(GLUT_WINDOW_HEIGHT) - 90);
+}
 
 // Função para desenhar o menu de Carregar Jogo
-void drawLoadGameMenu() {
+void drawLoadGameMenu(Game* game) {
     glClear(GL_COLOR_BUFFER_BIT);
     glColor3f(1.0f, 1.0f, 1.0f);
     drawBackground(backgroundTexture);
@@ -215,38 +260,123 @@ void drawLoadGameMenu() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Desenha o quadrado preto translúcido
-    glColor4f(0.0f, 0.0f, 0.0f, 0.5f);  // Preto com 50% de transparência
+    // Desenha o fundo translúcido
+    glColor4f(0.0f, 0.0f, 0.0f, 0.5f);
     glBegin(GL_QUADS);
-        glVertex2f(0.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior esquerdo
-        glVertex2f(300.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior direito
-        glVertex2f(300.0f, 0.0f);  // Canto superior direito
-        glVertex2f(0.0f, 0.0f);  // Canto superior esquerdo
+        glVertex2f(0.0f, glutGet(GLUT_WINDOW_HEIGHT));
+        glVertex2f(glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
+        glVertex2f(glutGet(GLUT_WINDOW_WIDTH), 0.0f);
+        glVertex2f(0.0f, 0.0f);
     glEnd();
-
-    // Desabilita o blending após desenhar
     glDisable(GL_BLEND);
-    
-    // Exemplo de opções para o Menu de Carregar Jogo
-    char *menuOptions[] = {"Load Saved Game", "Back"};
-    
-    for (int i = 0; i < 2; i++) {
-        if (i == game.selectedOption) {
-            glColor3f(1.0f, 0.5f, 0.0f);  // Cor de destaque para a opção selecionada
-        } else {
-            glColor3f(1.0f, 1.0f, 1.0f);  // Cor padrão
-        }
 
-        float xPos = 70.0f;
-        float yPos = (glutGet(GLUT_WINDOW_HEIGHT) / 2) + (i * 50);
-        renderText(medFont, menuOptions[i], xPos, yPos);  // Substituir o glutBitmapCharacter
+    // Variáveis para controle de slots
+    int totalSlots = 4;
+    int selectedSlot = game->selectedOption; // Índice do slot selecionado
+    float slotHeight = 0.1f * glutGet(GLUT_WINDOW_HEIGHT);
+    float slotWidth = 0.5f * glutGet(GLUT_WINDOW_WIDTH);
+    int yOffset = 0;
+    char slotText[50];
+
+    // Abre a pasta "saves"
+    DIR* dir = opendir("./saves");
+    int saveCount = 0;
+    if (dir) {
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != NULL && saveCount < totalSlots) {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+                continue;
+            }
+
+            float xStart = 0.25f * glutGet(GLUT_WINDOW_WIDTH);
+            float yStart = 0.15f * glutGet(GLUT_WINDOW_HEIGHT) + saveCount * (slotHeight + 0.02f * glutGet(GLUT_WINDOW_HEIGHT));
+
+            // Montar caminho completo e abrir arquivo
+            char filePath[512];
+            snprintf(filePath, sizeof(filePath), "./saves/%s", entry->d_name);
+            FILE* file = fopen(filePath, "rb");
+            if (file != NULL) {
+                SavedGame savedGame;
+                fread(&savedGame, sizeof(SavedGame), 1, file);
+                fclose(file);
+
+                // Desenha o retângulo para o slot
+                glColor3f((saveCount == selectedSlot) ? 1.0f : 1.0f, 
+                        (saveCount == selectedSlot) ? 0.5f : 1.0f, 
+                        (saveCount == selectedSlot) ? 0.0f : 1.0f);
+                glBegin(GL_LINE_LOOP);
+                    glVertex2f(xStart, yStart + yOffset);
+                    glVertex2f(xStart + slotWidth, yStart + yOffset);
+                    glVertex2f(xStart + slotWidth, yStart + slotHeight + yOffset);
+                    glVertex2f(xStart, yStart + slotHeight + yOffset);
+                glEnd();
+
+                // Formatar texto e renderizar
+                char formattedTime[50];
+                strftime(formattedTime, sizeof(formattedTime), "%d/%m/%Y %H:%M:%S", localtime(&savedGame.lastPlayed));
+                renderText(medFont, savedGame.saveName,  xStart + 20, yStart + slotHeight / 2 + 8 + yOffset);
+                renderText(minFont, formattedTime, xStart + 20, yStart + slotHeight / 2 + 28 + yOffset);
+
+                game->slotFiles[saveCount] = malloc(256 * sizeof(char));  // Aloca 256 bytes para o nome do arquivo
+                if (game->slotFiles[saveCount] == NULL) {
+                    perror("Erro ao alocar memória para slot de save");
+                    exit(1);
+                }
+
+                // Salva o nome do arquivo para o slot
+                snprintf(game->slotFiles[saveCount], 256, "%s", entry->d_name);
+
+                yOffset += 20;
+                saveCount++;
+            }
+        }
+        closedir(dir);
     }
 
-    glutSwapBuffers();
+    // Preenche os slots restantes com "vazio"
+    while (saveCount < totalSlots) {
+        float xStart = 0.25f * glutGet(GLUT_WINDOW_WIDTH);
+        float yStart = 0.15f * glutGet(GLUT_WINDOW_HEIGHT) + saveCount * (slotHeight + 0.02f * glutGet(GLUT_WINDOW_HEIGHT));
+
+        glColor3f((saveCount == selectedSlot) ? 1.0f : 1.0f, 
+                  (saveCount == selectedSlot) ? 0.5f : 1.0f, 
+                  (saveCount == selectedSlot) ? 0.0f : 1.0f);
+        glBegin(GL_LINE_LOOP);
+            glVertex2f(xStart, yStart + yOffset);
+            glVertex2f(xStart + slotWidth, yStart + yOffset);
+            glVertex2f(xStart + slotWidth, yStart + slotHeight + yOffset);
+            glVertex2f(xStart, yStart + slotHeight + yOffset);
+        glEnd();
+
+        snprintf(slotText, sizeof(slotText), "Slot %d: Vazio", saveCount + 1);
+        renderText(medFont, slotText, xStart + 20, yStart + slotHeight / 2 + 8 + yOffset);
+
+        yOffset += 20;
+        saveCount++;
+    }
+
+    // Mensagem adicional
+char enter_line[] = "SELECT";
+char back_line[] = "BACK";
+
+// Calculando a largura total (ícones + textos)
+int iconWidth = 50;
+int iconSpacing = 10;  // Distância entre os ícones
+
+// Calculando a posição X para centralizar os ícones e textos
+int totalWidth = 2 * iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + getTextWidth(minFont, back_line);
+int startX = (glutGet(GLUT_WINDOW_WIDTH) - totalWidth) / 2;  // Posição inicial X para centralizar
+
+// Desenhar ícones e textos
+drawIcons(icons[0], startX, glutGet(GLUT_WINDOW_HEIGHT) - 105, iconWidth, iconWidth);
+renderText(minFont, enter_line, startX + iconWidth + iconSpacing, glutGet(GLUT_WINDOW_HEIGHT) - 100);
+
+drawIcons(icons[1], startX + iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + iconSpacing, glutGet(GLUT_WINDOW_HEIGHT) - 105, iconWidth, iconWidth);
+renderText(minFont, back_line, startX + iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + iconSpacing + iconWidth, glutGet(GLUT_WINDOW_HEIGHT) - 100);
 }
 
 // Função para desenhar o menu de Ranking
-void drawRankingMenu() {
+void drawRankingMenu(Game* game) {
     glClear(GL_COLOR_BUFFER_BIT);
     glColor3f(1.0f, 1.0f, 1.0f);
     drawBackground(backgroundTexture);
@@ -271,7 +401,7 @@ void drawRankingMenu() {
     char *menuOptions[] = {"View Ranking", "Back"};
     
     for (int i = 0; i < 2; i++) {
-        if (i == game.selectedOption) {
+        if (i == game->selectedOption) {
             glColor3f(1.0f, 0.5f, 0.0f);  // Cor de destaque para a opção selecionada
         } else {
             glColor3f(1.0f, 1.0f, 1.0f);  // Cor padrão
@@ -286,7 +416,7 @@ void drawRankingMenu() {
 }
 
 // Função para desenhar o menu de Opções
-void drawOptionsMenu() {
+void drawOptionsMenu(Game* game) {
     glClear(GL_COLOR_BUFFER_BIT);
     glColor3f(1.0f, 1.0f, 1.0f);
     drawBackground(backgroundTexture);
@@ -311,7 +441,7 @@ void drawOptionsMenu() {
     char *menuOptions[] = {"Sound On/Off", "Back"};
     
     for (int i = 0; i < 2; i++) {
-        if (i == game.selectedOption) {
+        if (i == game->selectedOption) {
             glColor3f(1.0f, 0.5f, 0.0f);  // Cor de destaque para a opção selecionada
         } else {
             glColor3f(1.0f, 1.0f, 1.0f);  // Cor padrão
@@ -341,14 +471,14 @@ void renderDotCount() {
 }
 
 // Função para renderizar o tempo na UI
-void renderLevel() {
+void renderLevel(Player* player) {
     glPushMatrix();
     glLoadIdentity();
     glDisable(GL_LIGHTING);
 
     char level[50];
     char level_line[] = "LEVEL";
-    sprintf(level, "%d", player.level);
+    sprintf(level, "%d", player->level);
 
     float text_width = getTextWidth(maxFont, level);
     float line_width = getTextWidth(maxFont, level);
@@ -363,8 +493,8 @@ void renderLevel() {
 
 // Função para renderizar o tempo na UI
 void renderGameTime() {
-    int minutes = elapsedTime / 60;  // Calcula os minutos
-    int seconds = elapsedTime % 60;  // Calcula os segundos
+    int minutes = (elapsedTime + elapsedSaveTime) / 60;  // Calcula os minutos
+    int seconds = (elapsedTime + elapsedSaveTime) % 60;  // Calcula os segundos
 
     char timeText[50];
     sprintf(timeText, "%02d:%02d", minutes, seconds);  // Converte o tempo para formato min:seg
@@ -379,7 +509,7 @@ void renderGameTime() {
     glPopMatrix();
 }
 
-void renderBatteryUI() {
+void renderBatteryUI(Player* player) {
     glPushMatrix();
     glLoadIdentity();
     glDisable(GL_LIGHTING);
@@ -400,12 +530,12 @@ void renderBatteryUI() {
     glRasterPos2f(x, y);  // Define a posição do texto
 
     // Ajustando a largura da barra de bateria com base na porcentagem
-    float batteryWidth = width * (batteryPercentage / 100.0f);  // A largura será proporcional à porcentagem da bateria
+    float batteryWidth = width * (player->flashlightPercentage / 100.0f);  // A largura será proporcional à porcentagem da bateria
 
     // Configurando a cor da barra de bateria (verde quando alta, vermelho quando baixa)
-    if (batteryPercentage > 50.0f) {
+    if (player->flashlightPercentage > 50.0f) {
         glColor3f(1.0f, 1.0f, 1.0f); // Branco
-    } else if (batteryPercentage > 20.0f){
+    } else if (player->flashlightPercentage > 20.0f){
         glColor3f(1.0f, 1.0f, 0.0f); // Amarelo
     } else {
         glColor3f(1.0f, 0.0f, 0.0f); // Vermelho
@@ -424,12 +554,12 @@ void renderBatteryUI() {
     glColor3f(1.0f, 1.0f, 1.0f); // Cor cinza para o fundo
 }
 
-void renderHealthUI() {
+void renderHealthUI(Player* player) {
     glPushMatrix();
     glLoadIdentity();
     glDisable(GL_LIGHTING);
     
-    int health = (int) player.health;  
+    int health = (int) player->health;  
 
     char healthText[50];
     char health_line[] = "HEALTH";
@@ -446,7 +576,7 @@ void renderHealthUI() {
     glEnable(GL_LIGHTING);
 }
 
-void renderSanityUI() {
+void renderSanityUI(Player* player) {
     glPushMatrix();
     glLoadIdentity();
     glDisable(GL_LIGHTING);
@@ -465,12 +595,12 @@ void renderSanityUI() {
     glRasterPos2f(x, y);  // Define a posição do texto
 
     // Ajustando a largura da barra de bateria com base na porcentagem
-    float sanityWidth = width * (player.sanity / 100.0f);  // A largura será proporcional à porcentagem da bateria
+    float sanityWidth = width * (player->sanity / 100.0f);  // A largura será proporcional à porcentagem da bateria
 
     // Configurando a cor da barra de bateria (verde quando alta, vermelho quando baixa)
-    if (player.sanity > 50.0f) {
+    if (player->sanity > 50.0f) {
         glColor3f(1.0f, 1.0f, 1.0f); // Branco
-    } else if (player.sanity > 20.0f){
+    } else if (player->sanity > 20.0f){
         glColor3f(1.0f, 1.0f, 0.0f); // Amarelo
     } else {
         glColor3f(1.0f, 0.0f, 0.0f); // Vermelho

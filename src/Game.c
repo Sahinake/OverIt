@@ -1,14 +1,21 @@
-#include "Maze.h"
 #include <GL/glut.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 
 #include "UI.h"
+#include "Game.h"
 #include "Sound.h"
 #include "miniaudio.h"
+#include "SaveLoad.h"
 
 #define M_PI 3.14159265358979323846
+#define BATTERY_DECREASE_RATE 0.01f 
+#define HEALTH_DECREASE_RATE 0.02f
+#define SANITY_DECREASE_RATE 0.02f
+#define MAX_BATTERY_PERCENTAGE 100.0f
+#define MAX_BATTERY 70.0f 
+#define DOT_COUNT 30
 
 // Definindo materiais e iluminação como variáveis globais
 GLfloat contourAmbient[] = { 0.0, 0.0, 1.0, 1.0 }; // Azul
@@ -64,19 +71,36 @@ void initializeRendering() {
 }
 
 // Função para inicializar o labirinto com paredes
-void initMaze() {
+void initMaze(Game* game) {
     for (int i = 0; i < WIDTH; i++) {
         for (int j = 0; j < HEIGHT; j++) {
-            maze[i][j] = 1; // Coloca uma parede em cada célula
+            game->maze[i][j] = 1; // Coloca uma parede em cada célula
         }
     }
 }
 
+// Função para inicializar o jogo
+void initGame(Game* game, Player* player) {
+    initMaze(game);
+    generateMaze(game, 1, 1);
+    initializePlayer(player);
+    spawnPlayer(game, player);
+    spawnDots(game);
+    spawnBatteries(game);
+    generateExit(game);
+    if(wasTheGameSaved == 0) {
+        saveGame("game_save.dat", player, game, elapsedTime);
+        wasTheGameSaved = 1;
+    }
+
+    glutPostRedisplay();
+}
+
 // Algoritmo para geração procedural do labirinto
-void generateMaze(int x, int y) {
+void generateMaze(Game* game, int x, int y) {
     int directions[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
     
-    maze[x][y] = 0; // Marca o caminho atual como vazio
+    game->maze[x][y] = 0; // Marca o caminho atual como vazio
 
     // Embaralha as direções
     for (int i = 0; i < 4; i++) {
@@ -93,50 +117,50 @@ void generateMaze(int x, int y) {
         int newX = x + directions[i][0] * 2;
         int newY = y + directions[i][1] * 2;
         
-        if (newX > 0 && newX < WIDTH && newY > 0 && newY < HEIGHT && maze[newX][newY] == 1) {
-            maze[x + directions[i][0]][y + directions[i][1]] = 0; // Remove a parede
-            generateMaze(newX, newY);
+        if (newX > 0 && newX < WIDTH && newY > 0 && newY < HEIGHT && game->maze[newX][newY] == 1) {
+            game->maze[x + directions[i][0]][y + directions[i][1]] = 0; // Remove a parede
+            generateMaze(game, newX, newY);
         }
     }
 }
 
 // Função para posicionar o jogador no ponto inicial
-void spawnPlayer() {
-    player.x = 1;
-    player.y = 1;
-    player.posX = (float)1;
-    player.posZ = (float)1;
-    maze[player.x][player.y] = 0; // Certifica que o ponto inicial está vazio
+void spawnPlayer(Game* game, Player* player) {
+    player->x = 1;
+    player->y = 1;
+    player->posX = (float)1;
+    player->posZ = (float)1;
+    game->maze[player->x][player->y] = 0; // Certifica que o ponto inicial está vazio
 }
 
 // Função para gerar dots aleatoriamente em posições válidas no labirinto
-void spawnDots() {
+void spawnDots(Game* game) {
     goalDots = DOT_COUNT; // Total de dots que o jogador precisa coletar
     for (int i = 0; i < DOT_COUNT; i++) {
         int x, y;
         do {
             x = rand() % (WIDTH - 2) + 1; // Evita as bordas
             y = rand() % (HEIGHT - 2) + 1;
-        } while (maze[x][y] != 0); // Garante que o dot não está em uma parede
-        dots[i].x = x;
-        dots[i].y = y;
-        dots[i].collected = false;
-        maze[x][y] = 2;
+        } while (game->maze[x][y] != 0); // Garante que o dot não está em uma parede
+        game->dots[i].x = x;
+        game->dots[i].y = y;
+        game->dots[i].collected = false;
+        game->maze[x][y] = 2;
     }
 }
 
 // Inicializa as baterias com valores padrão
-void spawnBatteries() {
+void spawnBatteries(Game* game) {
     for (int i = 0; i < BATTERY_COUNT; i++) {
         int x, y;
         do {
             x = rand() % (WIDTH - 2) + 1; 
             y = rand() % (HEIGHT - 2) + 1;
-        } while (maze[x][y] != 0);
-        batteries[i].x = x;
-        batteries[i].y = y;
-        batteries[i].collected = false;
-        maze[x][y] = 3;
+        } while (game->maze[x][y] != 0);
+        game->batteries[i].x = x;
+        game->batteries[i].y = y;
+        game->batteries[i].collected = false;
+        game->maze[x][y] = 3;
     }
 }
 
@@ -149,33 +173,36 @@ void setMaterial(GLfloat ambient[4], GLfloat diffuse[4], GLfloat specular[4], GL
 }
 
 // Função para inicializar o jogador
-void initializePlayer() {
-    player.posX = 1.0f;            
-    player.posZ = 0.0f;            
+void initializePlayer(Player* player) {
+    player->posX = 1.0f;            
+    player->posZ = 0.0f;            
     // player.speed = 1.0f;          
-    player.health = MAX_HEALTH;
-    player.sanity = MAX_SANITY;
-    player.radius = 0.3f;          
+    player->health = MAX_HEALTH;
+    player->sanity = MAX_SANITY;
+    player->radius = 0.3f;          
     // player.moveDirX = 0.0f;        
     // player.moveDirY = 0.0f;        
-    player.x = (int)floor(player.posX); 
-    player.y = (int)floor(player.posZ); 
-    player.level = 1;
-    player.flashlight = 1;
+    player->x = (int)floor(player->posX); 
+    player->y = (int)floor(player->posZ); 
+    player->level = 1;
+    player->flashlight = 1;
+    player->flashlightPercentage = MAX_BATTERY_PERCENTAGE;
+    player->flashlightCharge = MAX_BATTERY;
+    player->dotsCount = DOT_COUNT;
 }
 
-void initializeExit() {
-    exitDoor.x = -1;
-    exitDoor.y = -1;
-    exitDoor.active = false; // A saída começa desativada
-    exitDoor.reached = false;
+void initializeExit(Game* game) {
+    game->exitDoor.x = -1;
+    game->exitDoor.y = -1;
+    game->exitDoor.active = false; // A saída começa desativada
+    game->exitDoor.reached = false;
 }
 
 // Função para renderizar o labirinto em 3D usando materiais e iluminação
-void renderMaze() {
+void renderMaze(Game* game) {
     for (int x = 0; x < WIDTH; x++) {
         for (int z = 0; z < HEIGHT; z++) {
-            if (maze[x][z] == 1) {  // Desenhar paredes
+            if (game->maze[x][z] == 1) {  // Desenhar paredes
                 // Primeiro, desenha o preenchimento preto
                 setMaterial(fillAmbient, fillDiffuse, fillSpecular, fillShininess);
                 glPushMatrix();
@@ -205,11 +232,11 @@ void renderMaze() {
                 glutWireCube(1); // Desenha o contorno com um cubo de wireframe
                 glPopMatrix();
 
-                if (exitDoor.active) {
+                if (game->exitDoor.active) {
                     setMaterial(exitAmbient, exitDiffuse, exitSpecular, exitShininess);
 
                     glPushMatrix();
-                    glTranslatef(exitDoor.x, -1.0f, exitDoor.y); // Coloca a saída no chão
+                    glTranslatef(game->exitDoor.x, -1.0f, game->exitDoor.y); // Coloca a saída no chão
                     glutSolidCube(1); // Desenha um cubo para representar a saída
                     glPopMatrix();
                 }
@@ -218,10 +245,10 @@ void renderMaze() {
     }
 }
 
-bool isObjectVisible(int objX, int objY) {
+bool isObjectVisible(Player* player, int objX, int objY) {
     // Calcula a distância entre o jogador e o dot
-    float dx = objX - player.x;
-    float dy = objY - player.y;
+    float dx = objX - player->x;
+    float dy = objY - player->y;
     float distance = sqrt(dx * dx + dy * dy);
 
     // Verifica se o dot está dentro do alcance da lanterna
@@ -242,11 +269,11 @@ bool isObjectVisible(int objX, int objY) {
     }
 
     // Verifica se o dot está dentro do ângulo de abertura da lanterna
-    return angleDiff <= batteryCharge;
+    return angleDiff <= player->flashlightCharge;
 }
 
 // Função para renderizar o jogador e os dots usando materiais
-void renderPlayerAndObjects() {
+void renderPlayerAndObjects(Game* game, Player* player) {
     // Define o material do jogador
     GLfloat playerAmbient[] = { 0.2, 0.0, 0.0, 1.0 };
     GLfloat playerDiffuse[] = { 1.0, 0.0, 0.0, 1.0 };
@@ -256,8 +283,8 @@ void renderPlayerAndObjects() {
     // Renderiza o jogador
     setMaterial(playerAmbient, playerDiffuse, playerSpecular, playerShininess);
     glPushMatrix();
-    glTranslatef(player.posX, player.posY, player.posZ);
-    glutSolidSphere(player.radius, 20, 20); // Usa uma esfera para o jogador
+    glTranslatef(player->posX, player->posY, player->posZ);
+    glutSolidSphere(player->radius, 20, 20); // Usa uma esfera para o jogador
     glPopMatrix();
 
     // Define o material dos dots
@@ -269,9 +296,9 @@ void renderPlayerAndObjects() {
     // Renderiza os dots
     setMaterial(dotAmbient, dotDiffuse, dotSpecular, dotShininess);
     for (int i = 0; i < DOT_COUNT; i++) {
-        if (!dots[i].collected && isObjectVisible(dots[i].x, dots[i].y)) {
+        if (!game->dots[i].collected && isObjectVisible(player, game->dots[i].x, game->dots[i].y)) {
             glPushMatrix();
-            glTranslatef(dots[i].x, 0, dots[i].y);
+            glTranslatef(game->dots[i].x, 0, game->dots[i].y);
             glutSolidSphere(0.15, 10, 10); // Usa uma esfera pequena para os dots
             glPopMatrix();
         }
@@ -286,9 +313,9 @@ void renderPlayerAndObjects() {
     // Renderiza as baterias
     setMaterial(batteryAmbient, batteryDiffuse, batterySpecular, batteryShininess);
     for (int i = 0; i < BATTERY_COUNT; i++) {
-        if (!batteries[i].collected && isObjectVisible(batteries[i].x, batteries[i].y)) {
+        if (!game->batteries[i].collected && isObjectVisible(player, game->batteries[i].x, game->batteries[i].y)) {
             glPushMatrix();
-            glTranslatef(batteries[i].x, 0, batteries[i].y);
+            glTranslatef(game->batteries[i].x, 0, game->batteries[i].y);
             glutSolidSphere(0.15, 10, 10); // Usa uma esfera pequena para os dots
             glPopMatrix();
         }
@@ -296,14 +323,14 @@ void renderPlayerAndObjects() {
 }
 
 // Função para verificar colisão com dots ou baterias
-bool checkObjectCollision() {
-    if (maze[player.x][player.y] == 2) {
+bool checkObjectCollision(Game* game, Player* player) {
+    if (game->maze[player->x][player->y] == 2) {
         for (int i = 0; i < DOT_COUNT; i++) {
-            if (!dots[i].collected && player.x == dots[i].x && player.y == dots[i].y) {
-                dots[i].collected = true;
+            if (!game->dots[i].collected && player->x == game->dots[i].x && player->y == game->dots[i].y) {
+                game->dots[i].collected = true;
                 playDotCollectSound();
                 goalDots--;
-                maze[player.x][player.y] = 0;
+                game->maze[player->x][player->y] = 0;
                 if (goalDots == 0) {
                     printf("Você coletou todos os dots!\n");
                 }
@@ -311,19 +338,13 @@ bool checkObjectCollision() {
         }
     }
 
-    if (maze[player.x][player.y] == 3) {
+    if (game->maze[player->x][player->y] == 3) {
             for (int i = 0; i < BATTERY_COUNT; i++) {
-            if (!batteries[i].collected && player.x == batteries[i].x && player.y == batteries[i].y) {
-                batteries[i].collected = true;
+            if (!game->batteries[i].collected && player->x == game->batteries[i].x && player->y == game->batteries[i].y) {
+                game->batteries[i].collected = true;
                 total_batteries--;
-                maze[player.x][player.y] = 0;
-                if(batteryPercentage <= 85.0f) {
-                    batteryPercentage += 15.0f;
-                }
-                else {
-                    batteryPercentage = 100.0f;
-                }
-                
+                game->maze[player->x][player->y] = 0;
+                player->flashlightPercentage += 15.0f;
             }
         }
     }
@@ -331,112 +352,116 @@ bool checkObjectCollision() {
 }
 
 // Função para diminuir a bateria ao longo do tempo
-void updateBattery() {
-    if (player.flashlight == 0) {
-        batteryPercentage += 0.01f;
-        batteryCharge = 0.0f;
+void updateBattery(Player* player) {
+    if (player->flashlight == 0) {
+        player->flashlightPercentage += BATTERY_DECREASE_RATE;
+        player->flashlightCharge = 0.0f;
         maxDistance = 0.0f;
 
-        if (batteryPercentage >= 100.0f) {
-            batteryPercentage = 100.0f;
+        if (player->flashlightPercentage >= 100.0f) {
+            player->flashlightPercentage = 100.0f;
         }
     }
-    else if (batteryPercentage > 100.0f) {
-        batteryCharge = MAX_BATTERY; // Diminui a bateria por frame
-        batteryPercentage = 100.0;
-        maxDistance = 5.0f;
-    }
-    else if (batteryPercentage > 50.0f) {
-        batteryCharge = MAX_BATTERY; // Diminui a bateria por frame
-        batteryPercentage -= BATTERY_DECREASE_RATE;
-        maxDistance = 5.0f;
-    }
-    else if (batteryPercentage > 20.0f) {
-        batteryCharge = 50.0f;
-        batteryPercentage -= BATTERY_DECREASE_RATE;
-        maxDistance = 4.0f;
-    }
-    else if (batteryPercentage > 0.0f) {
-        batteryCharge = 30.0f;
-        batteryPercentage -= BATTERY_DECREASE_RATE;
-        maxDistance = 3.0f;
-    }
-    else if (batteryPercentage <= 0.0f) {
-        batteryPercentage = 0.0f;
-        batteryPercentage = 0.0f;
-        maxDistance = 0.0f;
+    else {
+        if (player->flashlightPercentage > 100.0f) {
+            player->flashlightCharge = MAX_BATTERY; // Diminui a bateria por frame
+            player->flashlightPercentage = 100.0;
+            maxDistance = 5.0f;
+        }
+        else if (player->flashlightPercentage > 50.0f) {
+            player->flashlightCharge = MAX_BATTERY; // Diminui a bateria por frame
+            player->flashlightPercentage -= BATTERY_DECREASE_RATE;
+            maxDistance = 5.0f;
+        }
+        else if (player->flashlightPercentage > 20.0f) {
+            player->flashlightCharge = 50.0f;
+            player->flashlightPercentage -= BATTERY_DECREASE_RATE;
+            maxDistance = 4.0f;
+        }
+        else if (player->flashlightPercentage > 0.0f) {
+            player->flashlightCharge = 30.0f;
+            player->flashlightPercentage -= BATTERY_DECREASE_RATE;
+            maxDistance = 3.0f;
+        }
+        else if (player->flashlightPercentage <= 0.0f) {
+            player->flashlightPercentage = 0.0f;
+            player->flashlightPercentage = 0.0f;
+            maxDistance = 0.0f;
+        }
     }
 }
 
 // Função para atualizar a sanidade e a vida do jogador
-void updatePlayerStatus() {
+void updatePlayerStatus(Player* player) {
     // Verifica se a bateria está vazia
-    if (batteryPercentage <= 0.0f) {
+    if (player->flashlightPercentage <= 0.0f) {
         // A sanidade diminui quando a bateria está zerada
-        player.sanity -= SANITY_DECREASE_RATE;
+        player->sanity -= SANITY_DECREASE_RATE;
         
         // Garante que a sanidade não seja menor que 0
-        if (player.sanity < 0.0f) {
-            player.sanity = 0.0f;
+        if (player->sanity < 0.0f) {
+            player->sanity = 0.0f;
         }
     }
 
-    if (player.flashlight == 0) {
-        player.sanity -= 0.01f;
+    if (player->flashlight == 0) {
+        player->sanity -= 0.01f;
 
         // Garante que a sanidade não seja menor que 0
-        if (player.sanity < 0.0f) {
-            player.sanity = 0.0f;
+        if (player->sanity < 0.0f) {
+            player->sanity = 0.0f;
         }
     }
 
     // Se a sanidade for 0, a vida também começa a diminuir
-    if (player.sanity == 0.0f) {
-        player.health -= HEALTH_DECREASE_RATE;
+    if (player->sanity == 0.0f) {
+        player->health -= HEALTH_DECREASE_RATE;
         
         // Garante que a vida não seja menor que 0
-        if (player.health < 0.0f) {
-            player.health = 0.0f;
+        if (player->health < 0.0f) {
+            player->health = 0.0f;
         }
     }
 }
 
 // Função para gerar a saída em uma posição aleatória
-void generateExit() {
+void generateExit(Game* game) {
     int x, y;
     do {
         x = rand() % (WIDTH - 2) + 1;
         y = rand() % (HEIGHT - 2) + 1;
-    } while (maze[x][y] == 1); // Garante que a saída não está em uma parede
+    } while (game->maze[x][y] == 1); // Garante que a saída não está em uma parede
     
-    exitDoor.x = x;
-    exitDoor.y = y;
-    printf("Coordenadas da porta: %d, %d\n", exitDoor.x, exitDoor.y);
+    game->exitDoor.x = x;
+    game->exitDoor.y = y;
+    printf("Coordenadas da porta: %d, %d\n", game->exitDoor.x, game->exitDoor.y);
 }
 
 // Função principal de atualização
-void updateGame() {
-    if (goalDots == 0 && !exitDoor.active) {
-        exitDoor.active = true; // Cria a saída após coletar todos os dots
+int updateGame(Game* game, Player* player) {
+    if (goalDots == 0 && !game->exitDoor.active) {
+        game->exitDoor.active = true; // Cria a saída após coletar todos os dots
     }
 
     // Checa se o jogador chegou à saída
-    if (exitDoor.active && player.x == exitDoor.x && player.y == exitDoor.y) {
+    if (game->exitDoor.active && player->x == game->exitDoor.x && player->y == game->exitDoor.y) {
         printf("Nível concluído! Indo para o próximo nível...\n");
-        player.level ++;
-        initMaze();
-        generateMaze(1, 1);
-        spawnPlayer();
-        spawnDots();
-        spawnBatteries();
-        initializeExit();
-        generateExit();
-        batteryPercentage = 100.0f;
+        player->level ++;
+        initMaze(game);
+        generateMaze(game, 1, 1);
+        spawnPlayer(game, player);
+        spawnDots(game);
+        spawnBatteries(game);
+        initializeExit(game);
+        generateExit(game);
+        saveGame("game_save.dat", player, game, elapsedTime);
+        return 1;
     }
+    return 0;
 }
 
 // Função para renderizar o labirinto e outros elementos
-void renderScene() {
-    renderMaze();
-    renderPlayerAndObjects();
+void renderScene(Game* game, Player* player) {
+    renderMaze(game);
+    renderPlayerAndObjects(game, player);
 }
