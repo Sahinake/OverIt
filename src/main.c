@@ -593,6 +593,8 @@ void init() {
     
     // Carrega os arquivos de save nos slots
     loadSaveSlots(&game);
+    // Carrega a lista de ranking
+    loadRankingFromFile(&game, "saves/ranking.dat");
 }
 
 // Função de callback do GLUT para o loop do jogo
@@ -631,8 +633,7 @@ int main(int argc, char** argv) {
     glutSpecialFunc(keyboardNavigation);  
     glutKeyboardFunc(keyboardDown);  
     //glutKeyboardUpFunc(keyboardUp);   // Para quando a tecla é liberada
-    glutReshapeFunc(reshape); 
-    
+    glutReshapeFunc(reshape);
     // Loop principal do GLUT
     glutMainLoop();
 

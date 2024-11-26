@@ -16,6 +16,7 @@
 #define BATTERY_DECREASE_RATE 0.01f 
 #define HEALTH_DECREASE_RATE 0.02f
 #define SANITY_DECREASE_RATE 0.02f
+#define MAX_RANKING_SIZE 4
 
 extern int maze_widht, maze_height;
 extern int goalDots;            
@@ -60,6 +61,12 @@ typedef struct {
     bool reached;         // Indica se o jogador alcançou a saída
 } Exit;
 
+typedef struct {
+    char name[32];
+    int elapsedTime;
+    int score;     // Indica se o dot já foi coletado
+} Ranking;
+
 // Definindo os estados possíveis do jogo
 typedef enum {
     MAIN_MENU,       // Menu Principal
@@ -80,6 +87,8 @@ typedef struct {
     Dot dots[DOT_COUNT];
     Battery batteries[BATTERY_COUNT];
     Exit exitDoor;
+    Ranking rankingList[MAX_RANKING_SIZE]; // Lista de ranking
+    int rankingCount;            // Contador de jogadores no ranking
 } Game;
 
 // Estrutura para armazenar coordenadas
@@ -106,5 +115,9 @@ void updatePlayerStatus(Player* player);
 void generateExit(Game* game);
 int updateGame(Game* game, Player* player);
 void renderScene(Game* game, Player* player, Object* playerModel);
+void addToRanking(Game* game, const char* name, int elapsedTime, int score);
+void displayRanking(Game* game);
+void saveRankingToFile(Game* game, const char* fileName);
+void loadRankingFromFile(Game* game, const char* fileName);
 
 #endif

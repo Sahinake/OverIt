@@ -468,6 +468,96 @@ void generateExit(Game* game) {
     printf("Coordenadas da porta: %d, %d\n", game->exitDoor.x, game->exitDoor.y);
 }
 
+// Função para adicionar um jogador ao ranking
+void addToRanking(Game* game, const char* name, int elapsedTime, int score) {
+    if (game->rankingCount < MAX_RANKING_SIZE) {
+        // Adiciona o jogador ao ranking
+        strncpy(game->rankingList[game->rankingCount].name, name, sizeof(game->rankingList[game->rankingCount].name) - 1);
+        game->rankingList[game->rankingCount].elapsedTime = elapsedTime;
+        game->rankingList[game->rankingCount].score = score;
+        game->rankingCount++;
+    } else {
+        // O ranking está cheio, adicionar o jogador apenas se ele for melhor que o pior jogador
+        int minIndex = 0;
+        for (int i = 1; i < MAX_RANKING_SIZE; i++) {
+            if (game->rankingList[i].score < game->rankingList[minIndex].score ||
+                (game->rankingList[i].score == game->rankingList[minIndex].score && game->rankingList[i].elapsedTime < game->rankingList[minIndex].elapsedTime)) {
+                minIndex = i;
+            }
+        }
+
+        // Se a pontuação ou o tempo for melhor, substitui a entrada no ranking
+        if (score > game->rankingList[minIndex].score || 
+            (score == game->rankingList[minIndex].score && elapsedTime < game->rankingList[minIndex].elapsedTime)) {
+            strncpy(game->rankingList[minIndex].name, name, sizeof(game->rankingList[minIndex].name) - 1);
+            game->rankingList[minIndex].elapsedTime = elapsedTime;
+            game->rankingList[minIndex].score = score;
+        }
+    }
+
+    // Ordenar o ranking por pontuação e tempo (do maior para o menor)
+    for (int i = 0; i < game->rankingCount - 1; i++) {
+        for (int j = i + 1; j < game->rankingCount; j++) {
+            if (game->rankingList[i].score < game->rankingList[j].score || 
+                (game->rankingList[i].score == game->rankingList[j].score && game->rankingList[i].elapsedTime > game->rankingList[j].elapsedTime)) {
+                // Trocar as posições
+                Ranking temp = game->rankingList[i];
+                game->rankingList[i] = game->rankingList[j];
+                game->rankingList[j] = temp;
+            }
+        }
+    }
+}
+
+// Função para exibir o ranking
+void displayRanking(Game* game) {
+    printf("Ranking:\n");
+    for (int i = 0; i < game->rankingCount; i++) {
+        printf("%d. %s - %d pontos - Tempo: %d segundos\n", i + 1, game->rankingList[i].name, game->rankingList[i].score, game->rankingList[i].elapsedTime);
+    }
+}
+
+// Função para salvar o ranking em um arquivo binário
+void saveRankingToFile(Game* game, const char* fileName) {
+    FILE* file = fopen(fileName, "wb");
+    if (file == NULL) {
+        printf("Erro ao salvar o ranking.\n");
+        return;
+    }
+    fwrite(&game->rankingCount, sizeof(int), 1, file);  // Salva o número de entradas no ranking
+    fwrite(game->rankingList, sizeof(Ranking), game->rankingCount, file);
+    fclose(file);
+}
+
+// Função para carregar o ranking de um arquivo binário
+void loadRankingFromFile(Game* game, const char* fileName) {
+    FILE* file = fopen(fileName, "rb");
+    if (file == NULL) {
+        printf("Nenhum ranking encontrado, criando novo ranking.\n");
+        game->rankingCount = 0;
+        return;
+    }
+    fread(&game->rankingCount, sizeof(int), 1, file);  // Carrega o número de entradas no ranking
+    fread(game->rankingList, sizeof(Ranking), game->rankingCount, file);
+    fclose(file);
+}
+
+// Função para calcular o score com base no nível e no tempo
+int calculateScore(int level, int elapsedTime) {
+    // A penalização do tempo diminui com o aumento do nível
+    float timePenalty = (float)elapsedTime / (1 + log((float)(level + 1)));
+    
+    // A pontuação é o nível multiplicado por um fator de 1000, subtraído da penalização do tempo
+    int score = (level * 1000) - (int)timePenalty;
+    
+    // Garantir que a pontuação não seja negativa
+    if (score < 0) {
+        score = 0;
+    }
+
+    return score;
+}
+
 // Função principal de atualização
 int updateGame(Game* game, Player* player) {
     if (goalDots == 0 && !game->exitDoor.active) {
@@ -477,6 +567,10 @@ int updateGame(Game* game, Player* player) {
     // Checa se o jogador chegou à saída
     if (game->exitDoor.active && player->x == game->exitDoor.x && player->y == game->exitDoor.y) {
         printf("Nível concluído! Indo para o próximo nível...\n");
+        int score = calculateScore(player->level, elapsedTime);
+        addToRanking(game, saveName, elapsedTime, score);
+        displayRanking(game);
+        saveRankingToFile(game, "saves/ranking.dat");
         player->level ++;
         initMaze(game);
         generateMaze(game, 1, 1);
