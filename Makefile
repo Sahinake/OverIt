@@ -1,7 +1,7 @@
 # Variáveis
 CC = gcc
-CFLAGS = -Iinclude -Ilib -I/usr/include/freetype2   		# Incluir os diretórios include e lib
-LDFLAGS = -lGL -lGLU -lglut -lm -lGLEW -lftgl -lfreetype   	# Bibliotecas necessárias
+CFLAGS = -Iinclude -Ilib -I/usr/include/freetype2   				# Incluir os diretórios include e lib
+LDFLAGS = -lGL -lGLU -lglut -lm -lGLEW -lftgl -lfreetype -lglfw		# Bibliotecas necessárias
 SRCDIR = src
 BUILDDIR = build
 TARGET = $(BUILDDIR)/OverIt

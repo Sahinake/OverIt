@@ -10,7 +10,7 @@ sudo apt update
 sudo apt install gcc
 sudo apt install make
 sudo apt install libglu1-mesa-dev freeglut3-dev mesa-common-dev
-sudo apt install libfreetype6 libfreetype6-dev libftgl-dev libglew-dev
+sudo apt install libfreetype6 libfreetype6-dev libftgl-dev libglew-dev libglfw3 libglfw3-dev
 ```
 
 ## Compilação e Execução
