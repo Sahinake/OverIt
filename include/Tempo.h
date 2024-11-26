@@ -1,8 +1,10 @@
-#ifndef TIME_H
-#define TIME_H
+#ifndef TEMPO_H
+#define TEMPO_H
+
+#include <time.h>  // Adicione esta linha
 
 // Variáveis globais para o tempo
-extern time_t startTime;
+extern time_t timeStart;
 extern time_t currentTime;
 extern time_t lastSaveTime;
 extern int elapsedTime;

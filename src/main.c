@@ -1,18 +1,19 @@
+#include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <FTGL/ftgl.h>
 #include <GL/glut.h>
 #include <stdbool.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>  // Para usleep() ou sleep()
 #include <dirent.h>  // Para listar arquivos na pasta
-#include <stdio.h>
-#include <time.h>
 #include <math.h>
+#include <windows.h>
 
 #include "ObjLoader.h"
 #include "UI.h"
 #include "Game.h"
-#include "Time.h"
+#include "Tempo.h"
 #include "Sound.h"
 #include "miniaudio.h"
 #include "stb_image.h"
@@ -49,7 +50,7 @@ float maxDistance = 5.0f;               // Distância máxima para a lanterna
 float batteryDecrease = BATTERY_DECREASE_RATE;
 
 // Variáveis globais para o tempo
-time_t startTime;
+time_t timeStart;
 time_t currentTime;
 time_t lastSaveTime;  // Variável para armazenar o tempo do último save
 
@@ -576,16 +577,16 @@ void init() {
     setup2DProjection();
 
     // Carregar a imagem de fundo
-    backgroundTexture = loadTexture("./assets/Images/Background.png");
+    backgroundTexture = loadTexture("C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/Images/Background.png");
 
-    initMaxFont("./assets/fonts/Rexlia.ttf");  
-    initMedFont("./assets/fonts/Rexlia.ttf");  
-    initMinFont("./assets/fonts/Rexlia.ttf");
+    initMaxFont("C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/fonts/Rexlia.ttf");  
+    initMedFont("C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/fonts/Rexlia.ttf");  
+    initMinFont("C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/fonts/Rexlia.ttf");
     initAudio();
     loadIcons();
 
     initObjectList(&objectList);
-    loadObjectFile(&objectList, "./assets/Objects/Player.obj");
+    loadObjectFile(&objectList, "C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/Objects/Player.obj");
     playerModel = getObjectList(&objectList, 0);
 
     game.currentState = MAIN_MENU;

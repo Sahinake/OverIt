@@ -15,6 +15,9 @@
         "miniaudio.h": "c",
         "textureloader.h": "c",
         "saveload.h": "c",
-        "objloader.h": "c"
+        "objloader.h": "c",
+        "ctype.h": "c",
+        "tempo.h": "c",
+        "dirent.h": "c"
     }
 }

@@ -12,7 +12,7 @@
 #define DOT_COUNT 30                    
 #define BATTERY_COUNT 5  
 
-extern time_t startTime;
+extern time_t timeStart;
 extern time_t currentTime;
 extern int elapsedTime;
 extern int elapsedSaveTime;

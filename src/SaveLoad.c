@@ -2,8 +2,10 @@
 #include <string.h>
 #include <time.h>
 #include <sys/stat.h>  // Para mkdir
+#include <direct.h>
 #include <dirent.h>
 #include <ctype.h>
+#include <windows.h>
 
 #include "SaveLoad.h"
 #include "Game.h"
@@ -15,12 +17,24 @@ extern char saveName[256];
 
 #define MAX_SAVES 4
 
-// Função para criar a pasta saves caso não exista
+// Função para criar a pasta 'saves' caso não exista
 void createSavesDirectory() {
-    // Tenta criar a pasta 'saves' se ela não existir
+    // Tenta obter informações sobre a pasta 'saves'
     struct stat st = {0};
+
+    // Verifica se a pasta 'saves' existe
     if (stat("saves", &st) == -1) {
-        mkdir("saves", 0700);  // Cria a pasta com permissão 0700
+#ifdef _WIN32
+        // Para Windows, usa _mkdir sem permissões
+        if (_mkdir("saves") == -1) {
+            // Trate o erro aqui se necessário
+        }
+#else
+        // Para sistemas Unix, usa mkdir com permissões 0700
+        if (mkdir("saves", 0700) == -1) {
+            // Trate o erro aqui se necessário
+        }
+#endif
     }
 }
 

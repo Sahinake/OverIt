@@ -1,7 +1,7 @@
+#include <time.h>
 #include <FTGL/ftgl.h>
 #include <GL/glut.h>
 #include <stdio.h>
-#include <time.h>
 #include <math.h>
 #include <dirent.h>
 
