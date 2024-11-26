@@ -1,6 +1,7 @@
 #ifndef GAME_H
 #define GAME_H
 
+#include <time.h> 
 #include <stdbool.h>
 #include <GL/glut.h>
 #include "ObjLoader.h"
@@ -16,6 +17,7 @@
 #define BATTERY_DECREASE_RATE 0.01f 
 #define HEALTH_DECREASE_RATE 0.02f
 #define SANITY_DECREASE_RATE 0.02f
+#define MAX_RANKING_SIZE 10
 
 extern int maze_widht, maze_height;
 extern int goalDots;            
@@ -71,6 +73,13 @@ typedef enum {
     FINISHED         // Jogador já morreu   
 } GameState;
 
+typedef struct {
+    char name[32];
+    int elapsedTime;
+    int score;     // Indica se o dot já foi coletado
+    struct tm endTime;       // Data e hora do encerramento do jogo
+} Ranking;
+
 // Estrutura para armazenar o estado do jogo
 typedef struct {
     char* slotFiles[MAX_SAVES];  // Array para armazenar os nomes dos arquivos de save
@@ -84,6 +93,8 @@ typedef struct {
     float volumeMusic;
     float volumeAmbient;
     float brightness;
+    Ranking rankingList[MAX_RANKING_SIZE];  // Lista de ranking
+    int rankingCount;                       // Contador de jogadores no ranking
 } Game;
 
 // Estrutura para armazenar coordenadas
@@ -112,5 +123,10 @@ int updateGame(Game* game, Player* player);
 void renderScene(Game* game, Player* player, Object* batteryModel);
 void renderScene(Game* game, Player* player, Object* batteryModel);
 void adjustBrightness(Game* game, float factor);
+void addToRanking(Game* game, const char* name, int elapsedTime, int score);
+void displayRanking(Game* game);
+void saveRankingToFile(Game* game, const char* fileName);
+void loadRankingFromFile(Game* game, const char* fileName);
+int calculateScore(int level, int elapsedTime);
 
 #endif

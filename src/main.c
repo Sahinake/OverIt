@@ -67,6 +67,8 @@ ma_engine engine;
 ma_sound soundAmbient;
 ma_sound soundDotCollect;
 ma_sound soundMenu;
+ma_sound soundFlashlightClick;
+ma_sound soundFlashlightChange;
 ma_sound soundMenuSelectPool[SOUND_POOL_SIZE];
 ma_sound soundMenuChangePool[SOUND_POOL_SIZE];
 ma_sound soundMenuBackPool[SOUND_POOL_SIZE];
@@ -252,23 +254,22 @@ void drawScene() {
         default:
             break;
     }
+    
     glutPostRedisplay();
 }
 
 // Função para renderizar a cena
 void display() {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glPushMatrix();     // Salva o estado atual da transformação
+
     if(game.currentState != PLAYING) {
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glLoadIdentity();
         setup2DProjection();
-        glPushMatrix();     // Salva o estado atual da transformação
         drawScene();
         if(isMainMenuMusicOn == 0) {
             playMenuMusic();
             isMainMenuMusicOn = 1;
         }
-        glFlush();          // Força a execução do desenho
-        glPopMatrix();      // Restaura o estado de transformação
     }
     else if(game.currentState == PLAYING) {
         if(isMainMenuMusicOn == 1) {
@@ -276,11 +277,9 @@ void display() {
             isMainMenuMusicOn = 0;
 
         } 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Configura a projeção 3D para renderizar o jogo
         setup3DProjection();  // Configura a projeção 3D para o jogo
-        glPushMatrix();       // Salva o estado da transformação atual
         cameraFollowPlayer(); // Move a câmera para seguir o jogador
         
         if(player.moving) {
@@ -289,11 +288,9 @@ void display() {
 
         updateLighting();                   // Atualiza a iluminação de acordo com o jogador
         renderScene(&game, &player, batteryModel);        // Renderiza o jogador e os dots
-        glPopMatrix();                      // Restaura o estado da transformação
 
         // Configura a projeção 2D para renderizar a UI
         setup2DProjection();
-        glPushMatrix();             
         if(!isGamePaused) {
             renderDotCount();           // Renderiza o contador de dots
             renderGameTime();           // Renderiza o tempo de jogo
@@ -306,12 +303,7 @@ void display() {
         else {
             drawOptionsPauseMenu(&game);
         }
-        glPopMatrix(); 
-
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        gluPerspective(45.0f, 1.0f, 0.1f, 100.0f);
-        glMatrixMode(GL_MODELVIEW);
+        glPopMatrix();
     }
 
     glutSwapBuffers();
@@ -371,6 +363,7 @@ void keyboardDown(unsigned char key, int x, int y) {
             }
             else if (key == 'f' || key == 'F') {
                 player.flashlight = player.flashlight == 1 ? 0 : 1;
+                playFlashlightClickSound();
             }
             else if(key == '+') {
                 if (player.flashlightCharge < 90.0f) {
@@ -400,6 +393,10 @@ void keyboardDown(unsigned char key, int x, int y) {
             }
             else if (key == 'c' || key == 'C') { // Diminuir volume dos efeitos
                 adjustBrightness(&game, 0.9f);  // Aumenta o brilho em 10%();
+            }
+            else if (key == 't' || key == 'T') {
+                //saveGame(saveName, &player, &game, elapsedTime);
+                player.health = 0.0f;
             }
         }
         if(key == 27) { 
@@ -435,8 +432,6 @@ void keyboardDown(unsigned char key, int x, int y) {
                     game.selectedOption = 3;
                     break;
                 case FINISHED:
-                    game.currentState = MAIN_MENU;
-                    game.selectedOption = 0;
                     break;
                 default:
                     break;
@@ -482,13 +477,7 @@ void keyboardDown(unsigned char key, int x, int y) {
                     //printSave(saveName);
                     break;
                 case RANKING_MENU:
-                    if (game.selectedOption == 0) {
-                        playMenuSelectSound();
-                    } else {
-                        game.currentState = MAIN_MENU;
-                        game.selectedOption = 2;
-                        playMenuBackSound();
-                    }
+                    break;
                 case OPTIONS_MENU:
                     if (game.selectedOption == 0) {
                         playMenuSelectSound();
@@ -498,7 +487,12 @@ void keyboardDown(unsigned char key, int x, int y) {
                         playMenuBackSound();
                     }
                     break;
-                case PLAYING:
+                case FINISHED:
+                    game.currentState = MAIN_MENU;
+                    game.selectedOption = 0;
+                    wasTheGameSaved = 0;
+                    stopAmbientMusic();
+                    removeFinishedSaves("./saves");
                     break;
                 default:
                     break;
@@ -533,15 +527,6 @@ void keyboardNavigation(int key, int x, int y) {
             game.selectedOption = (game.selectedOption - 1 + 4) % 4;
         } else if (key == GLUT_KEY_DOWN) {
             game.selectedOption = (game.selectedOption + 1) % 4;
-        }
-        playMenuChangeSound();
-        drawScene();
-    }
-    else if(game.currentState == RANKING_MENU) {
-        if (key == GLUT_KEY_UP) {
-            game.selectedOption = (game.selectedOption - 1 + 2) % 2;
-        } else if (key == GLUT_KEY_DOWN) {
-            game.selectedOption = (game.selectedOption + 1) % 2;
         }
         playMenuChangeSound();
         drawScene();
@@ -658,11 +643,13 @@ void init() {
     
     // Carrega os arquivos de save nos slots
     loadSaveSlots(&game);
+    // Carrega a lista de ranking
+    loadRankingFromFile(&game, "./ranking.dat");
 }
 
 // Função de callback do GLUT para o loop do jogo
 void update(int value) {
-    if(game.currentState == PLAYING && !isGamePaused) {
+    if(game.currentState == PLAYING && !isGamePaused && game.currentState != FINISHED) {
         updatePlayerStatus(&game, &player);
 
         if(goalDots == 0) {

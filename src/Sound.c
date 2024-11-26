@@ -23,6 +23,12 @@ void initAudio() {
     if (ma_sound_init_from_file(&engine, "assets/Sounds/Dot.mp3", 0, NULL, NULL, &soundDotCollect) != MA_SUCCESS) {
         printf("Falha ao carregar o som de coleta de dot.\n");
     }
+    if (ma_sound_init_from_file(&engine, "assets/Sounds/FlashlightChange.mp3", 0, NULL, NULL, &soundFlashlightChange) != MA_SUCCESS) {
+        printf("Falha ao carregar o som de coleta de bateria.\n");
+    }
+    if (ma_sound_init_from_file(&engine, "assets/Sounds/FlashlightClick.mp3", 0, NULL, NULL, &soundFlashlightClick) != MA_SUCCESS) {
+        printf("Falha ao carregar o som de ligar e desligar a lanterna.\n");
+    }
     if (ma_sound_init_from_file(&engine, "assets/Sounds/MainMenu.mp3", 0, NULL, NULL, &soundMenu) != MA_SUCCESS) {
         printf("Falha ao carregar a música do menu.\n");
     }
@@ -35,6 +41,8 @@ void initAudio() {
 
     // Configura o volume inicial
     ma_sound_set_volume(&soundDotCollect, game.volumeEffects);
+    ma_sound_set_volume(&soundFlashlightChange, game.volumeEffects);
+    ma_sound_set_volume(&soundFlashlightClick, game.volumeEffects);
     ma_sound_set_volume(&soundAmbient, game.volumeAmbient);
     ma_sound_set_volume(&soundMenu, game.volumeMusic); 
     for (int i = 0; i < SOUND_POOL_SIZE; i++) {
@@ -47,6 +55,11 @@ void initAudio() {
 void playAmbientMusic() {
     ma_sound_start(&soundAmbient);
     ma_sound_set_looping(&soundAmbient, MA_TRUE); // Define a música ambiente para repetir em loop
+}
+
+void stopAmbientMusic() {
+    ma_sound_set_looping(&soundAmbient, MA_FALSE);
+    ma_sound_stop(&soundAmbient);  // Para o som atual, caso esteja tocando
 }
 
 void playMenuMusic() {
@@ -73,6 +86,16 @@ void playMenuBackSound() {
 void playDotCollectSound() {
     ma_sound_stop(&soundDotCollect);  
     ma_sound_start(&soundDotCollect);
+}
+
+void playFlashlightClickSound() {
+    ma_sound_stop(&soundFlashlightClick);  
+    ma_sound_start(&soundFlashlightClick);
+}
+
+void playFlashlightChangeSound() {
+    ma_sound_stop(&soundFlashlightChange);  
+    ma_sound_start(&soundFlashlightChange);
 }
 
 void setEffectVolume(float volume) {

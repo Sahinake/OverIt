@@ -360,32 +360,57 @@ void drawRankingMenu(Game* game) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Desenha o quadrado preto translúcido
-    glColor4f(0.0f, 0.0f, 0.0f, 0.5f);  // Preto com 50% de transparência
+    // Desenha o fundo translúcido
+    glColor4f(0.0f, 0.0f, 0.0f, 0.5f);
     glBegin(GL_QUADS);
-        glVertex2f(0.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior esquerdo
-        glVertex2f(300.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior direito
-        glVertex2f(300.0f, 0.0f);  // Canto superior direito
-        glVertex2f(0.0f, 0.0f);  // Canto superior esquerdo
+        glVertex2f(0.0f, glutGet(GLUT_WINDOW_HEIGHT));
+        glVertex2f(glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
+        glVertex2f(glutGet(GLUT_WINDOW_WIDTH), 0.0f);
+        glVertex2f(0.0f, 0.0f);
     glEnd();
-
-    // Desabilita o blending após desenhar
     glDisable(GL_BLEND);
-    
-    // Exemplo de opções para o Menu de Ranking
-    char *menuOptions[] = {"View Ranking", "Back"};
-    
-    for (int i = 0; i < 2; i++) {
-        if (i == game->selectedOption) {
-            glColor3f(1.0f, 0.5f, 0.0f);  // Cor de destaque para a opção selecionada
-        } else {
-            glColor3f(1.0f, 1.0f, 1.0f);  // Cor padrão
-        }
 
-        float xPos = 70.0f;
-        float yPos = (glutGet(GLUT_WINDOW_HEIGHT) / 2) + (i * 50);
-        renderText(medFont, menuOptions[i], xPos, yPos);  // Substituir o glutBitmapCharacter
+    glColor3f(1.0f, 1.0f, 1.0f);
+    float menuWidth = 0.7f * glutGet(GLUT_WINDOW_WIDTH);  // 60% da largura da janela
+    float menuHeight = 0.5f * glutGet(GLUT_WINDOW_HEIGHT);  // 50% da altura da janela
+    float xStart = (glutGet(GLUT_WINDOW_WIDTH))/2 - menuWidth / 2.0f;  // Centraliza na horizontal
+    float yStart = 50.0f;
+    float slotHeight = 30.0f;
+    int yOffset = 0;
+
+    // Exibe os 10 melhores jogos
+    for (int i = 0; i < game->rankingCount && i < 10; i++) {
+        char rankingText[300];
+        float yPosition = 50.0f + i * (slotHeight + 0.02f * glutGet(GLUT_WINDOW_HEIGHT));
+        
+        // Formata a data e hora
+        char dateStr[50];
+        strftime(dateStr, sizeof(dateStr), "%d/%m/%Y %H:%M:%S", &game->rankingList[i].endTime);
+
+        
+        // Formata o texto com o nome, pontuação, tempo e data de encerramento
+        sprintf(rankingText, "%d. %s - %d pontos - Tempo: %d segundos - Data: %s", 
+                i + 1, game->rankingList[i].name, game->rankingList[i].score, 
+                game->rankingList[i].elapsedTime, dateStr);
+        
+        // Desenha o ranking na tela (ajustando a posição X e Y para centralizar o texto)
+        renderText(minFont, rankingText, xStart, yPosition + slotHeight / 2.0f);  // Ajuste X e Y
     }
+
+    // Mensagens de instrução
+    char enter_line[] = "SELECT";
+    char back_line[] = "BACK";
+
+    int iconWidth = 50;
+    int iconSpacing = 10;
+    int totalWidth = 2 * iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + getTextWidth(minFont, back_line);
+    int startX = (glutGet(GLUT_WINDOW_WIDTH) - totalWidth) / 2;
+
+    drawIcons(icons[0], startX, glutGet(GLUT_WINDOW_HEIGHT) - 105, iconWidth, iconWidth);
+    renderText(minFont, enter_line, startX + iconWidth + iconSpacing, glutGet(GLUT_WINDOW_HEIGHT) - 100);
+
+    drawIcons(icons[1], startX + iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + iconSpacing, glutGet(GLUT_WINDOW_HEIGHT) - 105, iconWidth, iconWidth);
+    renderText(minFont, back_line, startX + iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + iconSpacing + iconWidth, glutGet(GLUT_WINDOW_HEIGHT) - 100);
 }
 
 // Função para desenhar um retângulo (utilizado para a barra e o fundo do menu)
@@ -479,7 +504,9 @@ void drawOptionsMenu(Game* game) {
 
 // Função para desenhar o menu de Ranking
 void drawGameOver(Game* game) {
+    glDisable(GL_LIGHTING);
     glClear(GL_COLOR_BUFFER_BIT);
+    glPushMatrix();
     glColor3f(1.0f, 1.0f, 1.0f);
     drawBackground(backgroundTexture);
 
@@ -487,7 +514,6 @@ void drawGameOver(Game* game) {
     char over_line[] = {"GAME OVER"};
     float text_width = getTextWidth(maxFont, over_line);
 
-    glDisable(GL_LIGHTING);
     renderText(maxFont, over_line, glutGet(GLUT_WINDOW_WIDTH)/2 - text_width/2, glutGet(GLUT_WINDOW_HEIGHT)/2);
     glEnable(GL_LIGHTING);
     glPopMatrix();
@@ -627,6 +653,7 @@ void renderHealthUI(Player* player) {
     glDisable(GL_LIGHTING);
     renderText(maxFont, healthText, 130, window_height - 40);  // Exibe o tempo ajustado
     glEnable(GL_LIGHTING);
+    glPopMatrix();
 }
 
 void renderSanityUI(Player* player) {
@@ -675,7 +702,6 @@ void renderSanityUI(Player* player) {
 // Função para configurar a projeção 2D da UI
 void setup2DProjection() {
     glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
     glLoadIdentity();
     glOrtho(0, glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT), 0, -1, 1); // Definindo a projeção ortogonal para 2D
     glMatrixMode(GL_MODELVIEW);

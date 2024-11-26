@@ -18,6 +18,7 @@
 #define MAX_BATTERY_PERCENTAGE 100.0f
 #define MAX_BATTERY 70.0f 
 #define DOT_COUNT 30
+#define MAX_RANKING_SIZE 10
 
 extern char saveName[256];
 extern GLuint batteryTexture;
@@ -383,6 +384,7 @@ bool checkObjectCollision(Game* game, Player* player) {
             for (int i = 0; i < BATTERY_COUNT; i++) {
             if (!game->batteries[i].collected && player->x == game->batteries[i].x && player->y == game->batteries[i].y) {
                 game->batteries[i].collected = true;
+                playFlashlightChangeSound();
                 total_batteries--;
                 game->maze[player->x][player->y] = 0;
                 player->flashlightPercentage += 15.0f;
@@ -466,6 +468,12 @@ void updatePlayerStatus(Game* game, Player* player) {
 
     if (player->health == 0.0f) {
         game->currentState = FINISHED;
+        addToRanking(game, "Oliver", elapsedTime, calculateScore(player->level, elapsedTime));
+        saveRankingToFile(game, "./ranking.dat");
+        if(wasTheGameSaved == 0) {
+            saveGame(saveName, player, game, elapsedTime);
+            wasTheGameSaved = 1;
+        }
     }
 }
 
@@ -530,5 +538,114 @@ void adjustBrightness(Game* game, float factor) {
     // Refatorar o modelo de iluminação
     glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, fillDiffuse);
     glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, playerSpecular);
+}
+
+// Função para calcular o score com base no nível e no tempo
+int calculateScore(int level, int elapsedTime) {
+    // A penalização do tempo diminui com o aumento do nível
+    float timePenalty = (float)elapsedTime / (1 + log((float)(level + 1)));
     
+    // A pontuação é o nível multiplicado por um fator de 1000, subtraído da penalização do tempo
+    int score = (level * 1000) - (int)timePenalty;
+    
+    // Garantir que a pontuação não seja negativa
+    if (score < 0) {
+        score = 0;
+    }
+    return score;
+}
+
+// Função para adicionar um jogador ao ranking
+void addToRanking(Game* game, const char* name, int elapsedTime, int score) {
+    if (game->rankingCount < MAX_RANKING_SIZE) {
+        // Adiciona o jogador ao ranking
+        strncpy(game->rankingList[game->rankingCount].name, name, sizeof(game->rankingList[game->rankingCount].name) - 1);
+        game->rankingList[game->rankingCount].elapsedTime = elapsedTime;
+        game->rankingList[game->rankingCount].score = score;
+
+        // Captura a data e hora de encerramento
+        time_t now = time(NULL);  // Obtém o tempo atual
+        game->rankingList[game->rankingCount].endTime = *localtime(&now);  // Converte para o formato local de data e hora
+
+        game->rankingCount++;
+    } else {
+        // O ranking está cheio, adicionar o jogador apenas se ele for melhor que o pior jogador
+        int minIndex = 0;
+        for (int i = 1; i < MAX_RANKING_SIZE; i++) {
+            if (game->rankingList[i].score < game->rankingList[minIndex].score ||
+                (game->rankingList[i].score == game->rankingList[minIndex].score && game->rankingList[i].elapsedTime < game->rankingList[minIndex].elapsedTime)) {
+                minIndex = i;
+            }
+        }
+        // Se a pontuação ou o tempo for melhor, substitui a entrada no ranking
+        if (score > game->rankingList[minIndex].score || 
+            (score == game->rankingList[minIndex].score && elapsedTime < game->rankingList[minIndex].elapsedTime)) {
+            strncpy(game->rankingList[minIndex].name, name, sizeof(game->rankingList[minIndex].name) - 1);
+            game->rankingList[minIndex].elapsedTime = elapsedTime;
+            game->rankingList[minIndex].score = score;
+
+            // Captura a data e hora de encerramento
+            time_t now = time(NULL);  // Obtém o tempo atual
+            game->rankingList[minIndex].endTime = *localtime(&now);  // Converte para o formato local de data e hora
+        }
+    }
+    // Ordenar o ranking por pontuação e tempo (do maior para o menor)
+    for (int i = 0; i < game->rankingCount - 1; i++) {
+        for (int j = i + 1; j < game->rankingCount; j++) {
+            if (game->rankingList[i].score < game->rankingList[j].score || 
+                (game->rankingList[i].score == game->rankingList[j].score && game->rankingList[i].elapsedTime > game->rankingList[j].elapsedTime)) {
+                // Trocar as posições
+                Ranking temp = game->rankingList[i];
+                game->rankingList[i] = game->rankingList[j];
+                game->rankingList[j] = temp;
+            }
+        }
+    }
+}
+
+// Função para exibir o ranking
+void displayRanking(Game* game) {
+    printf("Ranking:\n");
+    for (int i = 0; i < game->rankingCount; i++) {
+        printf("%d. %s - %d pontos - Tempo: %d segundos\n", i + 1, game->rankingList[i].name, game->rankingList[i].score, game->rankingList[i].elapsedTime);
+    }
+}
+
+// Função para salvar o ranking em um arquivo binário
+void saveRankingToFile(Game* game, const char* fileName) {
+    FILE* file = fopen(fileName, "wb");
+    if (file == NULL) {
+        printf("Erro ao salvar o ranking.\n");
+        return;
+    }
+    
+    // Salva o número de entradas no ranking
+    fwrite(&game->rankingCount, sizeof(int), 1, file);
+    
+    // Salva cada entrada do ranking, incluindo a data de encerramento
+    for (int i = 0; i < game->rankingCount; i++) {
+        fwrite(&game->rankingList[i], sizeof(Ranking), 1, file);
+    }
+    
+    fclose(file);
+}
+
+// Função para carregar o ranking de um arquivo binário
+void loadRankingFromFile(Game* game, const char* fileName) {
+    FILE* file = fopen(fileName, "rb");
+    if (file == NULL) {
+        printf("Nenhum ranking encontrado, criando novo ranking.\n");
+        game->rankingCount = 0;
+        return;
+    }
+    
+    // Carrega o número de entradas no ranking
+    fread(&game->rankingCount, sizeof(int), 1, file);
+    
+    // Carrega cada entrada do ranking, incluindo a data de encerramento
+    for (int i = 0; i < game->rankingCount; i++) {
+        fread(&game->rankingList[i], sizeof(Ranking), 1, file);
+    }
+    
+    fclose(file);
 }
