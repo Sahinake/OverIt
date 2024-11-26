@@ -18,6 +18,9 @@
         "objloader.h": "c",
         "ctype.h": "c",
         "tempo.h": "c",
-        "dirent.h": "c"
+        "dirent.h": "c",
+        "gl.h": "c",
+        "stb_image.h": "c",
+        "glew.h": "c"
     }
 }

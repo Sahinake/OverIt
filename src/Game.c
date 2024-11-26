@@ -20,6 +20,8 @@
 #define DOT_COUNT 30
 
 extern char saveName[256];
+extern GLuint batteryTexture;
+bool useTexture = true;
 
 // Definindo materiais e iluminação como variáveis globais
 GLfloat contourAmbient[] = { 0.0, 0.0, 1.0, 1.0 }; // Azul
@@ -62,6 +64,12 @@ GLfloat dotAmbient[] = { 0.0, 0.0, 0.0, 1.0 };
 GLfloat dotDiffuse[] = { 1.0, 0.0, 0.0, 1.0 };
 GLfloat dotSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
 GLfloat dotShininess = 10.0; // Brilho baixo para dots
+
+// Define o material das baterias
+GLfloat batteryAmbient[] = { 0.0, 0.0, 0.0, 1.0 };
+GLfloat batteryDiffuse[] = { 1.0, 1.0, 1.0, 1.0 };
+GLfloat batterySpecular[] = { 0.3, 0.3, 0.3, 1.0 };
+GLfloat batteryShininess = 10.0; // Brilho baixo para dots
 
 void initializeRendering() {
     // Ativa a luz
@@ -290,66 +298,99 @@ bool isObjectVisible(Player* player, int objX, int objY) {
 }
 
 // Função para renderizar o jogador e os dots usando materiais
-void renderPlayerAndObjects(Game* game, Player* player, Object* playerModel) {
+void renderPlayerAndObjects(Game* game, Player* player, Object* coinModel, Object* batteryModel) {
     // Renderiza o jogador (substituindo a esfera pelo modelo)
-    if (playerModel != NULL) {
-        setMaterial(playerAmbient, playerDiffuse, playerSpecular, playerShininess);
-        glPushMatrix();
-        glTranslatef(player->posX, player->posY, player->posZ); // Move para a posição do jogador
-        glScalef(player->radius, player->radius, player->radius); // Escala para o tamanho do jogador
-        glRotatef(player->rotation, 0.0f, 1.0f, 0.0f);  // Rotaciona o player no eixo Y
-        
-        // Renderiza o modelo do jogador
-        for (int i = 0; i < playerModel->size; i++) {
-            glBegin(GL_TRIANGLES);
-            Face face = playerModel->faces[i];
+    // Renderiza a esfera caso o modelo não tenha sido carregado
+    setMaterial(playerAmbient, playerDiffuse, playerSpecular, playerShininess);
+    glPushMatrix();
+    glTranslatef(player->posX, player->posY, player->posZ);
+    glutSolidSphere(player->radius, 20, 20);
+    glPopMatrix();
 
-            // Define normais e vértices para cada face
-            glNormal3f(face.normaA.x, face.normaA.y, face.normaA.z);
-            glVertex3f(face.vertexA.x, face.vertexA.y, face.vertexA.z);
-
-            glNormal3f(face.normaB.x, face.normaB.y, face.normaB.z);
-            glVertex3f(face.vertexB.x, face.vertexB.y, face.vertexB.z);
-
-            glNormal3f(face.normaC.x, face.normaC.y, face.normaC.z);
-            glVertex3f(face.vertexC.x, face.vertexC.y, face.vertexC.z);
-            glEnd();
-        }
-        glPopMatrix();
-    } else {
-        // Renderiza a esfera caso o modelo não tenha sido carregado
-        setMaterial(playerAmbient, playerDiffuse, playerSpecular, playerShininess);
-        glPushMatrix();
-        glTranslatef(player->posX, player->posY, player->posZ);
-        glutSolidSphere(player->radius, 20, 20);
-        glPopMatrix();
-    }
-
-    // Renderiza os dots
     setMaterial(dotAmbient, dotDiffuse, dotSpecular, dotShininess);
-    for (int i = 0; i < DOT_COUNT; i++) {
+    for(int i = 0; i < DOT_COUNT; i++) {
         if (!game->dots[i].collected && isObjectVisible(player, game->dots[i].x, game->dots[i].y)) {
             glPushMatrix();
             glTranslatef(game->dots[i].x, 0, game->dots[i].y);
-            glutSolidSphere(0.15, 10, 10); // Usa uma esfera pequena para os dots
-            glPopMatrix();
+            glScalef(0.05, 0.05, 0.05); 
+            glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
+            
+            // Renderiza o modelo da chave
+            if (coinModel != NULL) {
+                for (int i = 0; i < coinModel->size; i++) {
+                    glBegin(GL_TRIANGLES);
+                    Face face = coinModel->faces[i];
+
+                    // Define normais e vértices para cada face
+                    glNormal3f(face.normaA.x, face.normaA.y, face.normaA.z);
+                    glVertex3f(face.vertexA.x, face.vertexA.y, face.vertexA.z);
+
+                    glNormal3f(face.normaB.x, face.normaB.y, face.normaB.z);
+                    glVertex3f(face.vertexB.x, face.vertexB.y, face.vertexB.z);
+
+                    glNormal3f(face.normaC.x, face.normaC.y, face.normaC.z);
+                    glVertex3f(face.vertexC.x, face.vertexC.y, face.vertexC.z);
+                    glEnd();
+                }
+                glPopMatrix();
+            }
+            else {
+                // Renderiza os dots usando o objeto importado
+                setMaterial(dotAmbient, dotDiffuse, dotSpecular, dotShininess);
+                for (int i = 0; i < DOT_COUNT; i++) {
+                    if (!game->dots[i].collected && isObjectVisible(player, game->dots[i].x, game->dots[i].y)) {
+                        glPushMatrix();
+                        glTranslatef(game->dots[i].x, 0, game->dots[i].y);
+                        glutSolidSphere(0.15, 10, 10); // Usa uma esfera pequena para os dots
+                        glPopMatrix();
+                    }
+                }
+            }
         }
     }
 
-    // Define o material das baterias
-    GLfloat batteryAmbient[] = { 0.0, 0.0, 0.0, 1.0 };
-    GLfloat batteryDiffuse[] = { 0.0, 1.0, 0.0, 1.0 };
-    GLfloat batterySpecular[] = { 0.3, 0.3, 0.3, 1.0 };
-    GLfloat batteryShininess = 10.0; // Brilho baixo para dots
-
-    // Renderiza as baterias
     setMaterial(batteryAmbient, batteryDiffuse, batterySpecular, batteryShininess);
     for (int i = 0; i < BATTERY_COUNT; i++) {
         if (!game->batteries[i].collected && isObjectVisible(player, game->batteries[i].x, game->batteries[i].y)) {
             glPushMatrix();
             glTranslatef(game->batteries[i].x, 0, game->batteries[i].y);
-            glutSolidSphere(0.15, 10, 10); // Usa uma esfera pequena para os dots
-            glPopMatrix();
+            glScalef(0.08, 0.08, 0.08); 
+            glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
+            
+            glEnable(GL_TEXTURE_2D);
+            glBindTexture(GL_TEXTURE_2D, batteryTexture); // Aplica a textura da bateria
+            
+            // Renderiza o modelo da bateria
+            if (batteryModel != NULL) {
+                for (int i = 0; i < batteryModel->size; i++) {
+                    glBegin(GL_TRIANGLES);
+                    Face face = batteryModel->faces[i];
+
+                    // Define normais e vértices para cada face
+                    glNormal3f(face.normaA.x, face.normaA.y, face.normaA.z);
+                    glTexCoord2f(0.0f, 0.0f);
+                    glVertex3f(face.vertexA.x, face.vertexA.y, face.vertexA.z);
+
+                    glNormal3f(face.normaB.x, face.normaB.y, face.normaB.z);
+                    glTexCoord2f(1.0f, 0.0f);
+                    glVertex3f(face.vertexB.x, face.vertexB.y, face.vertexB.z);
+
+                    glNormal3f(face.normaC.x, face.normaC.y, face.normaC.z);
+                    glTexCoord2f(0.5f, 1.0f);
+                    glVertex3f(face.vertexC.x, face.vertexC.y, face.vertexC.z);
+                    glEnd();
+                }
+                glPopMatrix();
+            }
+            else {
+                // Renderiza as baterias usando a textura
+                glPushMatrix();
+                glTranslatef(game->batteries[i].x, 0, game->batteries[i].y);
+                glBindTexture(GL_TEXTURE_2D, batteryTexture); // Aplica a textura
+                glutSolidSphere(0.15, 10, 10); // Usa uma esfera com a textura
+                glPopMatrix();
+            }
+            glDisable(GL_TEXTURE_2D);
         }
     }
 }
@@ -493,7 +534,7 @@ int updateGame(Game* game, Player* player) {
 }
 
 // Função para renderizar o labirinto e outros elementos
-void renderScene(Game* game, Player* player, Object* playerModel) {
+void renderScene(Game* game, Player* player, Object* coinModel, Object* batteryModel) {
     renderMaze(game);
-    renderPlayerAndObjects(game, player, playerModel);
+    renderPlayerAndObjects(game, player, coinModel, batteryModel);
 }

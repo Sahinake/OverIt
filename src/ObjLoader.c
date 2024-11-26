@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "ObjLoader.h"
+#include "textureloader.h"
 
 // Função para inicializar a lista de objetos
 void initObjectList(ObjectList *lde) {
@@ -151,6 +153,8 @@ void loadObjectFile(ObjectList* lde, const char* filename) {
     int numFaces = 0, numVertices = 0, numNormals = 0, numTextures = 0;
     float x, y, z;
     char ch;
+    char materialFile[256] = "";  // Nome do arquivo .mtl
+    char textureFile[256] = "";   // Nome da textura do arquivo .obj
 
     while (!feof(file)) {
         ch = fgetc(file);
@@ -178,19 +182,27 @@ void loadObjectFile(ObjectList* lde, const char* filename) {
                     vertices[v1], vertices[v2], vertices[v3],
                     textures[t1], textures[t2], textures[t3],
                     numFaces));
-        } else if (ch == 'n') {
-            fscanf(file, "%f %f %f", &x, &y, &z);
-            addVector(&normals, &numNormals, &sizeN, createVector3D(x, y, z));
+        } else if (ch == 'm') {
+            fscanf(file, "tllib %s", materialFile);  // Lê o nome do arquivo mtl
+        } else if (ch == 'u') {
+            fscanf(file, "semtl %s", textureFile);  // Lê o nome da textura
         }
     }
 
-    //Cria o objeto com as faces carregadas
+    // Agora, carregar a textura (caso esteja associada)
+    if (strlen(textureFile) > 0) {
+        printf("Carregando a textura: %s\n", textureFile);
+        // A função para carregar a textura será personalizada de acordo com seu sistema OpenGL
+        loadTexture(textureFile);  // Essa função pode ser definida conforme necessário
+    }
+
+    // Cria o objeto com as faces carregadas
     Object *obj = (Object *)malloc(sizeof(Object));
     obj->faces = faces;
     obj->size = numFaces;
     obj->prev = obj->next = NULL;
 
-    //Adiciona o objeto à lista
+    // Adiciona o objeto à lista
     addObjectList(lde, obj);
 
     // Fecha o arquivo

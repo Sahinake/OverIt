@@ -99,12 +99,12 @@ void initializeExit(Game* game);
 void setMaterial(GLfloat ambient[4], GLfloat diffuse[4], GLfloat specular[4], GLfloat shininess);
 void renderMaze(Game* game);
 bool isObjectVisible(Player* player, int objX, int objY);
-void renderPlayerAndObjects(Game* game, Player* player, Object* playerModel);
+void renderPlayerAndObjects(Game* game, Player* player, Object* coinModel, Object* batteryModel);
 bool checkObjectCollision(Game* game, Player* player) ;
 void updateBattery(Player* player);
 void updatePlayerStatus(Player* player);
 void generateExit(Game* game);
 int updateGame(Game* game, Player* player);
-void renderScene(Game* game, Player* player, Object* playerModel);
+void renderScene(Game* game, Player* player, Object* coinModel, Object* batteryModel) ;
 
 #endif

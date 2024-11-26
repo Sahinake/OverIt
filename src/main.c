@@ -76,7 +76,7 @@ float volumeMusic = 1.0f;
 float volumeAmbient = 0.4f;
 int isMainMenuMusicOn = 0;
 int wasTheGameSaved = 0;
-GLuint backgroundTexture;
+GLuint backgroundTexture, batteryTexture;
 
 bool isGamePaused = false;
 
@@ -95,7 +95,8 @@ FTGLfont *minFont;
 ObjectList objectList;
 
 // Pegue o primeiro objeto carregado como modelo do jogador
-Object* playerModel;
+Object* coinModel;
+Object* batteryModel;
 
 // Função para a câmera seguir o jogador
 void cameraFollowPlayer() {
@@ -285,7 +286,7 @@ void display() {
         } 
 
         updateLighting();                   // Atualiza a iluminação de acordo com o jogador
-        renderScene(&game, &player, playerModel);        // Renderiza o jogador e os dots
+        renderScene(&game, &player, coinModel, batteryModel);        // Renderiza o jogador e os dots
         glPopMatrix();                      // Restaura o estado da transformação
 
         // Configura a projeção 2D para renderizar a UI
@@ -566,6 +567,7 @@ void init() {
 
     // Carregar a imagem de fundo
     backgroundTexture = loadTexture("C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/Images/Background.png");
+    batteryTexture = loadTexture("C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/Objects/battery/RGB_74f40f51e22244c68872b66bf27b6403_cj_dianchi01.png");
 
     initMaxFont("C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/fonts/Rexlia.ttf");  
     initMedFont("C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/fonts/Rexlia.ttf");  
@@ -574,8 +576,10 @@ void init() {
     loadIcons();
 
     initObjectList(&objectList);
-    loadObjectFile(&objectList, "C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/Objects/Player.obj");
-    playerModel = getObjectList(&objectList, 0);
+    loadObjectFile(&objectList, "C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/Objects/battery/battery.obj");
+    loadObjectFile(&objectList, "C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/Objects/coin/coin.obj");
+    batteryModel = getObjectList(&objectList, 0);
+    coinModel = getObjectList(&objectList, 1);
 
     game.currentState = MAIN_MENU;
     game.selectedOption = 0;
