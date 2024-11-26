@@ -206,9 +206,8 @@ void movePlayer() {
         if(game.maze[player.x][player.y] == 2 || game.maze[player.x][player.y] == 3) {
             checkObjectCollision(&game, &player);
         }
+        glutPostRedisplay();
     }
-
-    glutPostRedisplay();
 }
 
 // Configurações de inicialização do OpenGL para 3D
@@ -253,6 +252,7 @@ void drawScene() {
         default:
             break;
     }
+    glutPostRedisplay();
 }
 
 // Função para renderizar a cena
@@ -305,7 +305,7 @@ void display() {
         gluPerspective(45.0f, 1.0f, 0.1f, 100.0f);
         glMatrixMode(GL_MODELVIEW);
     }
-
+    
     glutSwapBuffers();
 }
 
@@ -314,186 +314,174 @@ void keyboardDown(unsigned char key, int x, int y) {
     float moveSpeed = 0.1f;  // Velocidade de movimento por delta de tempo (por segundo)
     float posX = player.posX;
     float posZ = player.posZ;
-    if ((key == 'w' || key == 'W') && !player.moving) {  // Move para frente (no eixo Z)
-        posZ = player.posZ + 1.0f;
-        if (!checkCollision(posX,posZ)){
-            player.targetZ = posZ;
-            player.speedZ = +moveSpeed;
-            player.moving = 1;
+    
+    if(game.currentState == PLAYING) {
+        if ((key == 'w' || key == 'W') && !player.moving) {  // Move para frente (no eixo Z)
+            posZ = player.posZ + 1.0f;
+            if (!checkCollision(posX,posZ)){
+                player.targetZ = posZ;
+                player.speedZ = +moveSpeed;
+                player.moving = 1;
+            }
+            lightDirX = 0.0f; 
+            lightDirZ = 1.0f;
+            player.rotation = 90.0f;
         }
-        lightDirX = 0.0f; 
-        lightDirZ = 1.0f;
-        player.rotation = 90.0f;
-    }
-    else if ((key == 's' || key == 'S') && !player.moving) {  // Move para trás (no eixo Z)
-        posZ = player.posZ - 1.0f;
-        if (!checkCollision(posX,posZ)){
-            player.targetZ = posZ;
-            player.speedZ = -moveSpeed;
-            player.moving = 1;
+        else if ((key == 's' || key == 'S') && !player.moving) {  // Move para trás (no eixo Z)
+            posZ = player.posZ - 1.0f;
+            if (!checkCollision(posX,posZ)){
+                player.targetZ = posZ;
+                player.speedZ = -moveSpeed;
+                player.moving = 1;
+            }
+            lightDirX = 0.0f; 
+            lightDirZ = -1.0f;
+            player.rotation = -90.0f;
         }
-        lightDirX = 0.0f; 
-        lightDirZ = -1.0f;
-        player.rotation = -90.0f;
-    }
-    else if ((key == 'a' || key == 'A') && !player.moving) {  // Move para a esquerda (no eixo X)
-        posX = player.posX + 1.0f;
-        if (!checkCollision(posX,posZ)){
-            player.targetX = posX;
-            player.speedX = +moveSpeed;
-            player.moving = 1;
+        else if ((key == 'a' || key == 'A') && !player.moving) {  // Move para a esquerda (no eixo X)
+            posX = player.posX + 1.0f;
+            if (!checkCollision(posX,posZ)){
+                player.targetX = posX;
+                player.speedX = +moveSpeed;
+                player.moving = 1;
+            }
+            lightDirX = +1.0f; 
+            lightDirZ = 0.0f;
+            player.rotation = 180.0f;
         }
-        lightDirX = +1.0f; 
-        lightDirZ = 0.0f;
-        player.rotation = 180.0f;
-    }
-    else if ((key == 'd' || key == 'D') && !player.moving) {  // Move para a direita (no eixo X)
-        posX = player.posX - 1.0f;
-        if (!checkCollision(posX,posZ)){
-            player.targetX = posX;
-            player.speedX = -moveSpeed;
-            player.moving = 1;
+        else if ((key == 'd' || key == 'D') && !player.moving) {  // Move para a direita (no eixo X)
+            posX = player.posX - 1.0f;
+            if (!checkCollision(posX,posZ)){
+                player.targetX = posX;
+                player.speedX = -moveSpeed;
+                player.moving = 1;
+            }
+            lightDirX = -1.0f; 
+            lightDirZ = 0.0f; 
+            player.rotation = 0.0f;
         }
-        lightDirX = -1.0f; 
-        lightDirZ = 0.0f; 
-        player.rotation = 0.0f;
-    }
-    else if (key == 'f' || key == 'F') {
-        player.flashlight = player.flashlight == 1 ? 0 : 1;
-    }
-    else if(key == '+') {
-        if (player.flashlightCharge < 90.0f) {
-            player.flashlightCharge += 5.0f; 
-            player.flashlightPercentage += 7.143f; // Aumenta o raio da luz
+        else if (key == 'f' || key == 'F') {
+            player.flashlight = player.flashlight == 1 ? 0 : 1;
         }
-    }
-    else if(key == '-') {
-        if (player.flashlightCharge > 10.0f) {
-            player.flashlightCharge -= 5.0f; 
-            player.flashlightPercentage -= 7.143f; // Diminui o raio da luz
+        else if(key == '+') {
+            if (player.flashlightCharge < 90.0f) {
+                player.flashlightCharge += 5.0f; 
+                player.flashlightPercentage += 7.143f; // Aumenta o raio da luz
+            }
         }
-    }
-    else if(key == 'r' || key == 'R') {
-        initializeRendering();
-        initMaze(&game);
-        generateMaze(&game, 1, 1);
-        spawnPlayer(&game, &player);
-        spawnDots(&game);
-        spawnBatteries(&game);
-        generateExit(&game);
-    }  
-    else if(key == 27) {
-        switch (game.currentState) {
-            case MAIN_MENU:
-                exit(0);
-                break;
-            case NEW_GAME_MENU:
-                game.currentState = MAIN_MENU;
-                game.selectedOption = 0;
-                break;
-            case LOAD_GAME_MENU:
-                game.currentState = MAIN_MENU;
-                game.selectedOption = 1;
-                break;
-            case RANKING_MENU:
-                game.currentState = MAIN_MENU;
-                game.selectedOption = 2;
-                break;
-            case OPTIONS_MENU:
-                game.currentState = MAIN_MENU;
-                game.selectedOption = 3;
-                break;
-            case PLAYING:
-                break;
-            default:
-                break;
+        else if(key == '-') {
+            if (player.flashlightCharge > 10.0f) {
+                player.flashlightCharge -= 5.0f; 
+                player.flashlightPercentage -= 7.143f; // Diminui o raio da luz
+            }
         }
-    } // ESC para sair
+        else if(key == 'r' || key == 'R') {
+            initializeRendering();
+            initMaze(&game);
+            generateMaze(&game, 1, 1);
+            spawnPlayer(&game, &player);
+            spawnDots(&game);
+            spawnBatteries(&game);
+            generateExit(&game);
+        }  
 
-    if (key == 127) {
-        deleteSelectedSave(&game);
-    } // Delete
-
-    // Adiciona teclas para controle de volume
-    if (key == 'v') { // Aumentar volume dos efeitos
-        increaseEffectVolume();
+        // Adiciona teclas para controle de volume
+        else if (key == 'v') { // Aumentar volume dos efeitos
+            increaseEffectVolume();
+        }
+        else if (key == 'c') { // Diminuir volume dos efeitos
+            decreaseEffectVolume();
+        }
     }
-    else if (key == 'c') { // Diminuir volume dos efeitos
-        decreaseEffectVolume();
-    }
-
-    if (key == 13) {  // Tecla Enter
-        switch (game.currentState) {
-            case MAIN_MENU:
-                if (game.selectedOption == 0) {
-                    game.currentState = NEW_GAME_MENU;
+    if(game.currentState != PLAYING && game.currentState != FINISHED) {
+        if(key == 27) {
+            switch (game.currentState) {
+                case MAIN_MENU:
+                    exit(0);
+                    break;
+                case NEW_GAME_MENU:
+                    game.currentState = MAIN_MENU;
                     game.selectedOption = 0;
-                } else if (game.selectedOption == 1) {
-                    game.currentState = LOAD_GAME_MENU;
-                    game.selectedOption = 0;
-                } else if (game.selectedOption == 2) {
-                    game.currentState = RANKING_MENU;
-                    game.selectedOption = 0;
-                } else if (game.selectedOption == 3) {
-                    game.currentState = OPTIONS_MENU;
-                    game.selectedOption = 0;
-                } else if (game.selectedOption == 4) {
-                    exit(0);  // Sair do jogo
-                }
-                playMenuSelectSound();
-                break;
-            case NEW_GAME_MENU:
-                newGame = 1;
-                saveSelectedGame(&game, &player, elapsedTime);
-                //game.currentState = PLAYING;  // Começar o jogo
-                playMenuSelectSound();
-                break;
-            case LOAD_GAME_MENU:
-                newGame = 0;
-                loadSelectedGame(&game, &player);
-                //printSave(saveName);
-                break;
-            case RANKING_MENU:
-                if (game.selectedOption == 0) {
-                    playMenuSelectSound();
-                } else {
+                    break;
+                case LOAD_GAME_MENU:
+                    game.currentState = MAIN_MENU;
+                    game.selectedOption = 1;
+                    break;
+                case RANKING_MENU:
                     game.currentState = MAIN_MENU;
                     game.selectedOption = 2;
-                    playMenuBackSound();
-                }
-            case OPTIONS_MENU:
-                if (game.selectedOption == 0) {
-                    playMenuSelectSound();
-                } else {
+                    break;
+                case OPTIONS_MENU:
                     game.currentState = MAIN_MENU;
                     game.selectedOption = 3;
-                    playMenuBackSound();
-                }
-                break;
-            case PLAYING:
-                break;
-            default:
-                break;
-        }
-        drawScene();
-    }
-    
-    glutPostRedisplay();
-}
+                    break;
+                case PLAYING:
+                    break;
+                default:
+                    break;
+            }
+        } // ESC para sair
 
-// Função para capturar o evento de soltar a tecla e zerar a direção de movimento
-void keyboardUp(unsigned char key, int x, int y) {
-    // switch (key) {
-    //     case 's': player.moveDirY = 0.0f; break;
-    //     case 'w': player.moveDirY = 0.0f; break;
-    //     case 'd': player.moveDirX = 0.0f; break;
-    //     case 'a': player.moveDirX = 0.0f; break;
-    //     case 'S': player.moveDirY = 0.0f; break;
-    //     case 'W': player.moveDirY = 0.0f; break;
-    //     case 'D': player.moveDirX = 0.0f; break;
-    //     case 'A': player.moveDirX = 0.0f; break;
-    // }
-    glutPostRedisplay();
+        if (key == 127) {
+            deleteSelectedSave(&game);
+        } // Delete
+
+        if (key == 13) {  // Tecla Enter
+            switch (game.currentState) {
+                case MAIN_MENU:
+                    if (game.selectedOption == 0) {
+                        game.currentState = NEW_GAME_MENU;
+                        game.selectedOption = 0;
+                    } else if (game.selectedOption == 1) {
+                        game.currentState = LOAD_GAME_MENU;
+                        game.selectedOption = 0;
+                    } else if (game.selectedOption == 2) {
+                        game.currentState = RANKING_MENU;
+                        game.selectedOption = 0;
+                    } else if (game.selectedOption == 3) {
+                        game.currentState = OPTIONS_MENU;
+                        game.selectedOption = 0;
+                    } else if (game.selectedOption == 4) {
+                        exit(0);  // Sair do jogo
+                    }
+                    playMenuSelectSound();
+                    break;
+                case NEW_GAME_MENU:
+                    newGame = 1;
+                    saveSelectedGame(&game, &player, elapsedTime);
+                    //game.currentState = PLAYING;  // Começar o jogo
+                    playMenuSelectSound();
+                    break;
+                case LOAD_GAME_MENU:
+                    newGame = 0;
+                    loadSelectedGame(&game, &player);
+                    //printSave(saveName);
+                    break;
+                case RANKING_MENU:
+                    if (game.selectedOption == 0) {
+                        playMenuSelectSound();
+                    } else {
+                        game.currentState = MAIN_MENU;
+                        game.selectedOption = 2;
+                        playMenuBackSound();
+                    }
+                case OPTIONS_MENU:
+                    if (game.selectedOption == 0) {
+                        playMenuSelectSound();
+                    } else {
+                        game.currentState = MAIN_MENU;
+                        game.selectedOption = 3;
+                        playMenuBackSound();
+                    }
+                    break;
+                case PLAYING:
+                    break;
+                default:
+                    break;
+            }
+            drawScene();
+        }
+    }
 }
 
 // Função para navegar entre os menus com as teclas de seta

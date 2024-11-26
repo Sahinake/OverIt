@@ -177,8 +177,6 @@ void drawMainMenu(Game* game) {
         float yPos = (glutGet(GLUT_WINDOW_HEIGHT) / 2) + (i * 50);
         renderText(medFont, menuOptions[i], xPos, yPos);  // Substituir o glutBitmapCharacter
     }
-
-    glutSwapBuffers();
 }
 
 void drawNewGameMenu(Game* game) {
