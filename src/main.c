@@ -585,7 +585,7 @@ void init() {
     loadIcons();
 
     initObjectList(&objectList);
-    loadObjectFile(&objectList, "./assets/Objects/Player.obj");
+    //loadObjectFile(&objectList, "./assets/Objects/Player.obj");
     playerModel = getObjectList(&objectList, 0);
 
     game.currentState = MAIN_MENU;

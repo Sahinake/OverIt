@@ -45,10 +45,28 @@ GLfloat groundDiffuse[] = { 0.1, 0.1, 0.1, 1.0 };  // Cor difusa do chão
 GLfloat groundSpecular[] = { 0.3, 0.3, 0.3, 1.0 }; // Reflexão especular (baixo brilho)
 GLfloat groundShininess = 10.0;  // Baixo brilho para simular um chão fosco
 
-GLfloat exitAmbient[] = { 0.0, 1.0, 0.0, 1.0 }; // Verde
-GLfloat exitDiffuse[] = { 0.0, 1.0, 0.0, 1.0 };
+GLfloat exitAmbient[] = { 0.0, 0.0, 0.5, 1.0 }; // Verde
+GLfloat exitDiffuse[] = { 0.0, 0.0, 1.0, 1.0 };
 GLfloat exitSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
 GLfloat exitShininess = 20.0;
+
+// Define o material do jogador
+GLfloat playerAmbient[] = { 0.5, 0.5, 0.0, 1.0 };
+GLfloat playerDiffuse[] = { 1.0, 1.0, 0.0, 1.0 };
+GLfloat playerSpecular[] = { 0.5, 0.5, 0.5, 1.0 };
+GLfloat playerShininess = 50.0; // Brilho médio
+
+// Define o material dos dots
+GLfloat dotAmbient[] = { 0.0, 0.0, 0.0, 1.0 };
+GLfloat dotDiffuse[] = { 1.0, 0.0, 0.0, 1.0 };
+GLfloat dotSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
+GLfloat dotShininess = 10.0; // Brilho baixo para dots
+
+// Define o material das baterias
+GLfloat batteryAmbient[] = { 0.0, 0.0, 0.0, 1.0 };
+GLfloat batteryDiffuse[] = { 0.0, 1.0, 0.0, 1.0 };
+GLfloat batterySpecular[] = { 0.3, 0.3, 0.3, 1.0 };
+GLfloat batteryShininess = 10.0; // Brilho baixo para dots
 
 void initializeRendering() {
     // Ativa a luz
@@ -278,12 +296,6 @@ bool isObjectVisible(Player* player, int objX, int objY) {
 
 // Função para renderizar o jogador e os dots usando materiais
 void renderPlayerAndObjects(Game* game, Player* player, Object* playerModel) {
-    // Define o material do jogador
-    GLfloat playerAmbient[] = { 0.2, 0.0, 0.0, 1.0 };
-    GLfloat playerDiffuse[] = { 1.0, 0.0, 0.0, 1.0 };
-    GLfloat playerSpecular[] = { 0.5, 0.5, 0.5, 1.0 };
-    GLfloat playerShininess = 50.0; // Brilho médio
-
     // Renderiza o jogador (substituindo a esfera pelo modelo)
     if (playerModel != NULL) {
         setMaterial(playerAmbient, playerDiffuse, playerSpecular, playerShininess);
@@ -318,12 +330,6 @@ void renderPlayerAndObjects(Game* game, Player* player, Object* playerModel) {
         glPopMatrix();
     }
 
-    // Define o material dos dots
-    GLfloat dotAmbient[] = { 0.0, 0.0, 0.0, 1.0 };
-    GLfloat dotDiffuse[] = { 1.0, 1.0, 0.0, 1.0 };
-    GLfloat dotSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
-    GLfloat dotShininess = 10.0; // Brilho baixo para dots
-
     // Renderiza os dots
     setMaterial(dotAmbient, dotDiffuse, dotSpecular, dotShininess);
     for (int i = 0; i < DOT_COUNT; i++) {
@@ -334,12 +340,6 @@ void renderPlayerAndObjects(Game* game, Player* player, Object* playerModel) {
             glPopMatrix();
         }
     }
-
-    // Define o material das baterias
-    GLfloat batteryAmbient[] = { 0.0, 0.0, 0.0, 1.0 };
-    GLfloat batteryDiffuse[] = { 0.0, 1.0, 0.0, 1.0 };
-    GLfloat batterySpecular[] = { 0.3, 0.3, 0.3, 1.0 };
-    GLfloat batteryShininess = 10.0; // Brilho baixo para dots
 
     // Renderiza as baterias
     setMaterial(batteryAmbient, batteryDiffuse, batterySpecular, batteryShininess);
