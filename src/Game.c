@@ -24,29 +24,29 @@ extern GLuint batteryTexture;
 bool useTexture = true;
 
 // Definindo materiais e iluminação como variáveis globais
-GLfloat contourAmbient[] = { 0.0, 0.0, 1.0, 1.0 }; // Azul
+GLfloat contourAmbient[] = { 0.0, 0.0, 0.3, 1.0 }; // Azul
 GLfloat contourDiffuse[] = { 0.0, 0.0, 1.0, 1.0 }; // Azul
 GLfloat contourSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
 GLfloat contourShininess = 20.0;
 
-GLfloat contourGroundAmbient[] = { 0.0, 0.0, 0.0, 1.0 }; // Azul
+GLfloat contourGroundAmbient[] = { 0.0, 0.0, 0.3, 1.0 }; // Azul
 GLfloat contourGroundDiffuse[] = { 0.0, 0.0, 1.0, 1.0 }; // Azul
 GLfloat contourGroundSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
 
 GLfloat fillAmbient[] = { 0.0, 0.0, 0.0, 1.0 }; // Preto
-GLfloat fillDiffuse[] = { 0.1, 0.1, 0.1, 1.0 }; // Preto
+GLfloat fillDiffuse[] = { 0.0, 0.0, 0.1, 1.0 }; // Preto
 GLfloat fillSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
 GLfloat fillShininess = 20.0;
 
-GLfloat lightPosition[] = { 0.0, 10.0, 0.0, 1.0 }; // Posição da luz
+GLfloat lightPosition[] = { 0.0, 1.0, 0.0, 1.0 }; // Posição da luz
 GLfloat lightAmbient[] = { 0.0, 0.0, 0.0, 1.0 }; // Luz ambiente
-GLfloat lightDiffuse[] = { 0.2, 0.2, 0.2, 1.0 }; // Luz difusa
+GLfloat lightDiffuse[] = { 0.7, 0.7, 0.7, 1.0 }; // Luz difusa
 GLfloat lightSpecular[] = { 1.0, 1.0, 1.0, 1.0 }; // Luz especular
 
 GLfloat groundAmbient[] = { 0.0, 0.0, 0.0, 1.0 };  // Cor ambiente do chão (cinza claro)
-GLfloat groundDiffuse[] = { 0.1, 0.1, 0.1, 1.0 };  // Cor difusa do chão
+GLfloat groundDiffuse[] = { 0.0, 0.0, 0.1, 1.0 };  // Cor difusa do chão
 GLfloat groundSpecular[] = { 0.3, 0.3, 0.3, 1.0 }; // Reflexão especular (baixo brilho)
-GLfloat groundShininess = 10.0;  // Baixo brilho para simular um chão fosco
+GLfloat groundShininess = 20.0;  // Baixo brilho para simular um chão fosco
 
 GLfloat exitAmbient[] = { 0.0, 0.5, 0.0, 1.0 }; // Verde
 GLfloat exitDiffuse[] = { 0.0, 0.0, 1.0, 1.0 };
@@ -54,7 +54,7 @@ GLfloat exitSpecular[] = { 0.3, 0.3, 0.3, 1.0 };
 GLfloat exitShininess = 20.0;
 
 // Define o material do jogador
-GLfloat playerAmbient[] = { 0.5, 0.5, 0.0, 1.0 };
+GLfloat playerAmbient[] = { 0.0, 0.0, 0.0, 1.0 };
 GLfloat playerDiffuse[] = { 1.0, 1.0, 0.0, 1.0 };
 GLfloat playerSpecular[] = { 0.5, 0.5, 0.5, 1.0 };
 GLfloat playerShininess = 50.0; // Brilho médio
@@ -298,8 +298,7 @@ bool isObjectVisible(Player* player, int objX, int objY) {
 }
 
 // Função para renderizar o jogador e os dots usando materiais
-void renderPlayerAndObjects(Game* game, Player* player, Object* coinModel, Object* batteryModel) {
-    // Renderiza o jogador (substituindo a esfera pelo modelo)
+void renderPlayerAndObjects(Game* game, Player* player, Object* batteryModel) {
     // Renderiza a esfera caso o modelo não tenha sido carregado
     setMaterial(playerAmbient, playerDiffuse, playerSpecular, playerShininess);
     glPushMatrix();
@@ -307,45 +306,14 @@ void renderPlayerAndObjects(Game* game, Player* player, Object* coinModel, Objec
     glutSolidSphere(player->radius, 20, 20);
     glPopMatrix();
 
+    // Renderiza os dots usando o objeto importado
     setMaterial(dotAmbient, dotDiffuse, dotSpecular, dotShininess);
-    for(int i = 0; i < DOT_COUNT; i++) {
+    for (int i = 0; i < DOT_COUNT; i++) {
         if (!game->dots[i].collected && isObjectVisible(player, game->dots[i].x, game->dots[i].y)) {
             glPushMatrix();
             glTranslatef(game->dots[i].x, 0, game->dots[i].y);
-            glScalef(0.05, 0.05, 0.05); 
-            glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
-            
-            // Renderiza o modelo da chave
-            if (coinModel != NULL) {
-                for (int i = 0; i < coinModel->size; i++) {
-                    glBegin(GL_TRIANGLES);
-                    Face face = coinModel->faces[i];
-
-                    // Define normais e vértices para cada face
-                    glNormal3f(face.normaA.x, face.normaA.y, face.normaA.z);
-                    glVertex3f(face.vertexA.x, face.vertexA.y, face.vertexA.z);
-
-                    glNormal3f(face.normaB.x, face.normaB.y, face.normaB.z);
-                    glVertex3f(face.vertexB.x, face.vertexB.y, face.vertexB.z);
-
-                    glNormal3f(face.normaC.x, face.normaC.y, face.normaC.z);
-                    glVertex3f(face.vertexC.x, face.vertexC.y, face.vertexC.z);
-                    glEnd();
-                }
-                glPopMatrix();
-            }
-            else {
-                // Renderiza os dots usando o objeto importado
-                setMaterial(dotAmbient, dotDiffuse, dotSpecular, dotShininess);
-                for (int i = 0; i < DOT_COUNT; i++) {
-                    if (!game->dots[i].collected && isObjectVisible(player, game->dots[i].x, game->dots[i].y)) {
-                        glPushMatrix();
-                        glTranslatef(game->dots[i].x, 0, game->dots[i].y);
-                        glutSolidSphere(0.15, 10, 10); // Usa uma esfera pequena para os dots
-                        glPopMatrix();
-                    }
-                }
-            }
+            glutSolidSphere(0.15, 10, 10); // Usa uma esfera pequena para os dots
+            glPopMatrix();
         }
     }
 
@@ -465,7 +433,7 @@ void updateBattery(Player* player) {
 }
 
 // Função para atualizar a sanidade e a vida do jogador
-void updatePlayerStatus(Player* player) {
+void updatePlayerStatus(Game* game, Player* player) {
     // Verifica se a bateria está vazia
     if (player->flashlightPercentage <= 0.0f) {
         // A sanidade diminui quando a bateria está zerada
@@ -494,6 +462,10 @@ void updatePlayerStatus(Player* player) {
         if (player->health < 0.0f) {
             player->health = 0.0f;
         }
+    }
+
+    if (player->health == 0.0f) {
+        game->currentState = FINISHED;
     }
 }
 
@@ -534,7 +506,29 @@ int updateGame(Game* game, Player* player) {
 }
 
 // Função para renderizar o labirinto e outros elementos
-void renderScene(Game* game, Player* player, Object* coinModel, Object* batteryModel) {
+void renderScene(Game* game, Player* player, Object* batteryModel) {
     renderMaze(game);
-    renderPlayerAndObjects(game, player, coinModel, batteryModel);
+    renderPlayerAndObjects(game, player, batteryModel);
+}
+
+void adjustBrightness(Game* game, float factor) {
+    game->brightness *= factor;
+
+    // Garantir que o brilho esteja dentro de limites razoáveis
+    if (game->brightness <= 0.0f) game->brightness = 0.1f;  // Valor mínimo de brilho
+    if (game->brightness > 4.0f) game->brightness = 4.0f;  // Valor máximo de brilho
+
+    // Ajustar a intensidade das luzes e materiais
+    lightDiffuse[0] = lightDiffuse[1] = lightDiffuse[2] = 0.7f * game->brightness;
+    lightSpecular[0] = lightSpecular[1] = lightSpecular[2] = 1.0f * game->brightness;
+
+    // Atualiza as luzes no OpenGL
+    glLightfv(GL_LIGHT2, GL_AMBIENT, lightAmbient);
+    glLightfv(GL_LIGHT2, GL_DIFFUSE, lightDiffuse);
+    glLightfv(GL_LIGHT2, GL_SPECULAR, lightSpecular);
+
+    // Refatorar o modelo de iluminação
+    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, fillDiffuse);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, playerSpecular);
+    
 }

@@ -80,6 +80,10 @@ typedef struct {
     Dot dots[DOT_COUNT];
     Battery batteries[BATTERY_COUNT];
     Exit exitDoor;
+    float volumeEffects;
+    float volumeMusic;
+    float volumeAmbient;
+    float brightness;
 } Game;
 
 // Estrutura para armazenar coordenadas
@@ -99,12 +103,14 @@ void initializeExit(Game* game);
 void setMaterial(GLfloat ambient[4], GLfloat diffuse[4], GLfloat specular[4], GLfloat shininess);
 void renderMaze(Game* game);
 bool isObjectVisible(Player* player, int objX, int objY);
-void renderPlayerAndObjects(Game* game, Player* player, Object* coinModel, Object* batteryModel);
+void renderPlayerAndObjects(Game* game, Player* player, Object* batteryModel);
 bool checkObjectCollision(Game* game, Player* player) ;
 void updateBattery(Player* player);
-void updatePlayerStatus(Player* player);
+void updatePlayerStatus(Game* game, Player* player);
 void generateExit(Game* game);
 int updateGame(Game* game, Player* player);
-void renderScene(Game* game, Player* player, Object* coinModel, Object* batteryModel) ;
+void renderScene(Game* game, Player* player, Object* batteryModel);
+void renderScene(Game* game, Player* player, Object* batteryModel);
+void adjustBrightness(Game* game, float factor);
 
 #endif

@@ -36,6 +36,7 @@ void drawNewGameMenu(Game* game);
 void drawLoadGameMenu(Game* game);
 void drawRankingMenu(Game* game);
 void drawOptionsMenu(Game* game);
+void drawOptionsPauseMenu(Game* game);
 void renderDotCount();
 void renderLevel(Player* player);
 void renderGameTime();
@@ -44,5 +45,6 @@ void setup3DProjection();
 void renderBatteryUI(Player* player);
 void renderSanityUI(Player* player);
 void renderHealthUI(Player* player);
+void drawGameOver(Game* game);
 
 #endif

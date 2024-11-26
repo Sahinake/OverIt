@@ -53,6 +53,7 @@ float batteryDecrease = BATTERY_DECREASE_RATE;
 time_t timeStart;
 time_t currentTime;
 time_t lastSaveTime;  // Variável para armazenar o tempo do último save
+time_t pausedTime;
 
 int elapsedTime;
 int elapsedSaveTime = 0;
@@ -70,10 +71,6 @@ ma_sound soundMenuSelectPool[SOUND_POOL_SIZE];
 ma_sound soundMenuChangePool[SOUND_POOL_SIZE];
 ma_sound soundMenuBackPool[SOUND_POOL_SIZE];
 
-// Variável global para o volume (pode ser ajustada entre 0.0 e 1.0)
-float volumeEffects = 0.6f;
-float volumeMusic = 1.0f;
-float volumeAmbient = 0.4f;
 int isMainMenuMusicOn = 0;
 int wasTheGameSaved = 0;
 GLuint backgroundTexture, batteryTexture;
@@ -95,7 +92,6 @@ FTGLfont *minFont;
 ObjectList objectList;
 
 // Pegue o primeiro objeto carregado como modelo do jogador
-Object* coinModel;
 Object* batteryModel;
 
 // Função para a câmera seguir o jogador
@@ -126,7 +122,7 @@ void updateLighting() {
     GLfloat lightPos[] = { (float)player.posX, 1.0f, (float)player.posZ, 1.0f };
 
     // A direção da luz será ajustada com base no movimento do jogador
-    GLfloat lightDir[] = { lightDirX, -0.5f, lightDirZ }; 
+    GLfloat lightDir[] = { lightDirX, -0.8f, lightDirZ }; 
 
     // Definindo características da luz ambiente, difusa e especular
     GLfloat ambientLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -223,6 +219,7 @@ void initPlaying() {
         initializeRendering();  
         if(newGame == 1) {
             initGame(&game, &player);
+            game.selectedOption = 0;
         }
         startGameTimer();  // Inicia o tempo no começo do jogo
         playAmbientMusic();
@@ -250,6 +247,8 @@ void drawScene() {
         case PLAYING:
             initPlaying();
             break;
+        case FINISHED:
+            drawGameOver(&game);
         default:
             break;
     }
@@ -258,7 +257,7 @@ void drawScene() {
 
 // Função para renderizar a cena
 void display() {
-    if(game.currentState != PLAYING && game.currentState != FINISHED) {
+    if(game.currentState != PLAYING) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glLoadIdentity();
         setup2DProjection();
@@ -272,8 +271,11 @@ void display() {
         glPopMatrix();      // Restaura o estado de transformação
     }
     else if(game.currentState == PLAYING) {
-        stopMenuMusic();
-        isMainMenuMusicOn = 0;
+        if(isMainMenuMusicOn == 1) {
+            stopMenuMusic();
+            isMainMenuMusicOn = 0;
+
+        } 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Configura a projeção 3D para renderizar o jogo
@@ -286,19 +288,24 @@ void display() {
         } 
 
         updateLighting();                   // Atualiza a iluminação de acordo com o jogador
-        renderScene(&game, &player, coinModel, batteryModel);        // Renderiza o jogador e os dots
+        renderScene(&game, &player, batteryModel);        // Renderiza o jogador e os dots
         glPopMatrix();                      // Restaura o estado da transformação
 
         // Configura a projeção 2D para renderizar a UI
         setup2DProjection();
         glPushMatrix();             
-        renderDotCount();           // Renderiza o contador de dots
-        renderGameTime();           // Renderiza o tempo de jogo
-        renderLevel(&player);
-        updateBattery(&player);
-        renderBatteryUI(&player);
-        renderSanityUI(&player);
-        renderHealthUI(&player);
+        if(!isGamePaused) {
+            renderDotCount();           // Renderiza o contador de dots
+            renderGameTime();           // Renderiza o tempo de jogo
+            renderLevel(&player);
+            updateBattery(&player);
+            renderBatteryUI(&player);
+            renderSanityUI(&player);
+            renderHealthUI(&player);
+        }
+        else {
+            drawOptionsPauseMenu(&game);
+        }
         glPopMatrix(); 
 
         glMatrixMode(GL_PROJECTION);
@@ -306,7 +313,7 @@ void display() {
         gluPerspective(45.0f, 1.0f, 0.1f, 100.0f);
         glMatrixMode(GL_MODELVIEW);
     }
-    
+
     glutSwapBuffers();
 }
 
@@ -317,84 +324,95 @@ void keyboardDown(unsigned char key, int x, int y) {
     float posZ = player.posZ;
     
     if(game.currentState == PLAYING) {
-        if ((key == 'w' || key == 'W') && !player.moving) {  // Move para frente (no eixo Z)
-            posZ = player.posZ + 1.0f;
-            if (!checkCollision(posX,posZ)){
-                player.targetZ = posZ;
-                player.speedZ = +moveSpeed;
-                player.moving = 1;
+        if(!isGamePaused) {
+            if ((key == 'w' || key == 'W') && !player.moving) {  // Move para frente (no eixo Z)
+                posZ = player.posZ + 1.0f;
+                if (!checkCollision(posX,posZ)){
+                    player.targetZ = posZ;
+                    player.speedZ = +moveSpeed;
+                    player.moving = 1;
+                }
+                lightDirX = 0.0f; 
+                lightDirZ = 1.0f;
+                player.rotation = 90.0f;
             }
-            lightDirX = 0.0f; 
-            lightDirZ = 1.0f;
-            player.rotation = 90.0f;
-        }
-        else if ((key == 's' || key == 'S') && !player.moving) {  // Move para trás (no eixo Z)
-            posZ = player.posZ - 1.0f;
-            if (!checkCollision(posX,posZ)){
-                player.targetZ = posZ;
-                player.speedZ = -moveSpeed;
-                player.moving = 1;
+            else if ((key == 's' || key == 'S') && !player.moving) {  // Move para trás (no eixo Z)
+                posZ = player.posZ - 1.0f;
+                if (!checkCollision(posX,posZ)){
+                    player.targetZ = posZ;
+                    player.speedZ = -moveSpeed;
+                    player.moving = 1;
+                }
+                lightDirX = 0.0f; 
+                lightDirZ = -1.0f;
+                player.rotation = -90.0f;
             }
-            lightDirX = 0.0f; 
-            lightDirZ = -1.0f;
-            player.rotation = -90.0f;
-        }
-        else if ((key == 'a' || key == 'A') && !player.moving) {  // Move para a esquerda (no eixo X)
-            posX = player.posX + 1.0f;
-            if (!checkCollision(posX,posZ)){
-                player.targetX = posX;
-                player.speedX = +moveSpeed;
-                player.moving = 1;
+            else if ((key == 'a' || key == 'A') && !player.moving) {  // Move para a esquerda (no eixo X)
+                posX = player.posX + 1.0f;
+                if (!checkCollision(posX,posZ)){
+                    player.targetX = posX;
+                    player.speedX = +moveSpeed;
+                    player.moving = 1;
+                }
+                lightDirX = +1.0f; 
+                lightDirZ = 0.0f;
+                player.rotation = 180.0f;
             }
-            lightDirX = +1.0f; 
-            lightDirZ = 0.0f;
-            player.rotation = 180.0f;
-        }
-        else if ((key == 'd' || key == 'D') && !player.moving) {  // Move para a direita (no eixo X)
-            posX = player.posX - 1.0f;
-            if (!checkCollision(posX,posZ)){
-                player.targetX = posX;
-                player.speedX = -moveSpeed;
-                player.moving = 1;
+            else if ((key == 'd' || key == 'D') && !player.moving) {  // Move para a direita (no eixo X)
+                posX = player.posX - 1.0f;
+                if (!checkCollision(posX,posZ)){
+                    player.targetX = posX;
+                    player.speedX = -moveSpeed;
+                    player.moving = 1;
+                }
+                lightDirX = -1.0f; 
+                lightDirZ = 0.0f; 
+                player.rotation = 0.0f;
             }
-            lightDirX = -1.0f; 
-            lightDirZ = 0.0f; 
-            player.rotation = 0.0f;
-        }
-        else if (key == 'f' || key == 'F') {
-            player.flashlight = player.flashlight == 1 ? 0 : 1;
-        }
-        else if(key == '+') {
-            if (player.flashlightCharge < 90.0f) {
-                player.flashlightCharge += 5.0f; 
-                player.flashlightPercentage += 7.143f; // Aumenta o raio da luz
+            else if (key == 'f' || key == 'F') {
+                player.flashlight = player.flashlight == 1 ? 0 : 1;
             }
-        }
-        else if(key == '-') {
-            if (player.flashlightCharge > 10.0f) {
-                player.flashlightCharge -= 5.0f; 
-                player.flashlightPercentage -= 7.143f; // Diminui o raio da luz
+            else if(key == '+') {
+                if (player.flashlightCharge < 90.0f) {
+                    player.flashlightCharge += 5.0f; 
+                    player.flashlightPercentage += 7.143f; // Aumenta o raio da luz
+                }
             }
-        }
-        else if(key == 'r' || key == 'R') {
-            initializeRendering();
-            initMaze(&game);
-            generateMaze(&game, 1, 1);
-            spawnPlayer(&game, &player);
-            spawnDots(&game);
-            spawnBatteries(&game);
-            generateExit(&game);
-        }  
+            else if(key == '-') {
+                if (player.flashlightCharge > 10.0f) {
+                    player.flashlightCharge -= 5.0f; 
+                    player.flashlightPercentage -= 7.143f; // Diminui o raio da luz
+                }
+            }
+            else if(key == 'r' || key == 'R') {
+                initializeRendering();
+                initMaze(&game);
+                generateMaze(&game, 1, 1);
+                spawnPlayer(&game, &player);
+                spawnDots(&game);
+                spawnBatteries(&game);
+                generateExit(&game);
+            }  
 
-        // Adiciona teclas para controle de volume
-        else if (key == 'v') { // Aumentar volume dos efeitos
-            increaseEffectVolume();
+            // Adiciona teclas para controle de volume
+            else if (key == 'v' || key == 'V') { // Aumentar volume dos efeitos
+                adjustBrightness(&game, 1.1f);  // Aumenta o brilho em 10%();
+            }
+            else if (key == 'c' || key == 'C') { // Diminuir volume dos efeitos
+                adjustBrightness(&game, 0.9f);  // Aumenta o brilho em 10%();
+            }
         }
-        else if (key == 'c') { // Diminuir volume dos efeitos
-            decreaseEffectVolume();
+        if(key == 27) { 
+            isGamePaused = !isGamePaused;
+            if(isGamePaused) {
+                pauseGame();
+            }
+            else {
+                resumeGame();
+            }
         }
     }
-    if(game.currentState != PLAYING && game.currentState != FINISHED) {
+    if(game.currentState != PLAYING) {
         if(key == 27) {
             switch (game.currentState) {
                 case MAIN_MENU:
@@ -416,7 +434,9 @@ void keyboardDown(unsigned char key, int x, int y) {
                     game.currentState = MAIN_MENU;
                     game.selectedOption = 3;
                     break;
-                case PLAYING:
+                case FINISHED:
+                    game.currentState = MAIN_MENU;
+                    game.selectedOption = 0;
                     break;
                 default:
                     break;
@@ -452,10 +472,13 @@ void keyboardDown(unsigned char key, int x, int y) {
                     saveSelectedGame(&game, &player, elapsedTime);
                     //game.currentState = PLAYING;  // Começar o jogo
                     playMenuSelectSound();
+                    game.selectedOption = 0;
                     break;
                 case LOAD_GAME_MENU:
                     newGame = 0;
                     loadSelectedGame(&game, &player);
+                    playMenuSelectSound();
+                    game.selectedOption = 0;
                     //printSave(saveName);
                     break;
                 case RANKING_MENU:
@@ -525,12 +548,59 @@ void keyboardNavigation(int key, int x, int y) {
     }
     else if(game.currentState == OPTIONS_MENU) {
         if (key == GLUT_KEY_UP) {
-            game.selectedOption = (game.selectedOption - 1 + 2) % 2;
-        } else if (key == GLUT_KEY_DOWN) {
-            game.selectedOption = (game.selectedOption + 1) % 2;
+            game.selectedOption = (game.selectedOption - 1 + 4) % 4;
+        } 
+        else if (key == GLUT_KEY_DOWN) {
+            game.selectedOption = (game.selectedOption + 1) % 4;
+        }
+        else if (key == GLUT_KEY_LEFT) {
+            if(game.selectedOption == 0) {
+                decreaseEffectVolume();
+            }
+            else if(game.selectedOption == 1) {
+                decreaseMusicVolume();
+            }
+            else if(game.selectedOption == 2) {
+                decreaseAmbientVolume();
+            }
+            else if(game.selectedOption == 3) {
+                adjustBrightness(&game, 0.9f);  // Diminui o brilho em 10%
+            } 
+        }
+        else if (key == GLUT_KEY_RIGHT) {
+            if(game.selectedOption == 0) {
+                increaseEffectVolume();
+            }
+            else if(game.selectedOption == 1) {
+                increaseMusicVolume();
+            }
+            else if(game.selectedOption == 2) {
+                increaseAmbientVolume();
+            }
+            else if(game.selectedOption == 3) {
+                adjustBrightness(&game, 1.1f);  // Aumenta o brilho em 10%
+            }
         }
         playMenuChangeSound();
         drawScene();
+    }
+    else if(game.currentState == PLAYING && isGamePaused) {
+         if (key == GLUT_KEY_UP) {
+            game.selectedOption = (game.selectedOption - 1 + 4) % 4;
+        } 
+        else if (key == GLUT_KEY_DOWN) {
+            game.selectedOption = (game.selectedOption + 1) % 4;
+        }
+        else if (key == GLUT_KEY_LEFT) {
+            if(game.selectedOption == 0) {
+                adjustBrightness(&game, 0.9f);  // Aumenta o brilho em 10%
+            } 
+        }
+        else if (key == GLUT_KEY_RIGHT) {
+            if(game.selectedOption == 0) {
+                adjustBrightness(&game, 1.1f);  // Aumenta o brilho em 10%
+            }
+        }
     }
 }
 
@@ -564,6 +634,13 @@ void init() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);  // Cor de fundo (preto)
 
     setup2DProjection();
+    
+    game.currentState = MAIN_MENU;
+    game.selectedOption = 0;
+    game.volumeEffects = 0.6f;
+    game.volumeMusic = 1.0f;
+    game.volumeAmbient = 0.4f;
+    game.brightness = 1.0f;
 
     // Carregar a imagem de fundo
     backgroundTexture = loadTexture("C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/Images/Background.png");
@@ -577,12 +654,7 @@ void init() {
 
     initObjectList(&objectList);
     loadObjectFile(&objectList, "C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/Objects/battery/battery.obj");
-    loadObjectFile(&objectList, "C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/Objects/coin/coin.obj");
     batteryModel = getObjectList(&objectList, 0);
-    coinModel = getObjectList(&objectList, 1);
-
-    game.currentState = MAIN_MENU;
-    game.selectedOption = 0;
     
     // Carrega os arquivos de save nos slots
     loadSaveSlots(&game);
@@ -590,8 +662,8 @@ void init() {
 
 // Função de callback do GLUT para o loop do jogo
 void update(int value) {
-    if(game.currentState == PLAYING) {
-        updatePlayerStatus(&player);
+    if(game.currentState == PLAYING && !isGamePaused) {
+        updatePlayerStatus(&game, &player);
 
         if(goalDots == 0) {
             if(updateGame(&game, &player) == 1) {

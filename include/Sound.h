@@ -24,8 +24,14 @@ void playMenuChangeSound();
 void playMenuBackSound();
 void playDotCollectSound();
 void setEffectVolume(float volume);
+void setMusicVolume(float volume);
+void setAmbientVolume(float volume);
 void increaseEffectVolume();
 void decreaseEffectVolume();
+void increaseMusicVolume();
+void decreaseMusicVolume();
+void increaseAmbientVolume();
+void decreaseAmbientVolume();
 void cleanupAudio();
 
 #endif

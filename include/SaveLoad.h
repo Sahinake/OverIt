@@ -18,6 +18,10 @@ typedef struct {
     Exit exitDoor;            // Saída do 
     int maze[WIDTH][HEIGHT];
     GameState currentState;
+    float volumeEffects;
+    float volumeMusic;
+    float volumeAmbient;
+    float brightness;
 } SavedGame;
 
 void createSavesDirectory();

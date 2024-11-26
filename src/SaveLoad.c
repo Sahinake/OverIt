@@ -120,7 +120,7 @@ void saveGame(const char* filename, Player* player, Game* game, int elapsedTime)
         }  
         
         savedGame.player = *player;  
-        savedGame.elapsedSaveTime = elapsedTime + elapsedSaveTime;
+        savedGame.elapsedSaveTime = elapsedTime;
         savedGame.exitDoor = game->exitDoor;  
         
         // Copiar o labirinto para o save
@@ -132,7 +132,11 @@ void saveGame(const char* filename, Player* player, Game* game, int elapsedTime)
         strncpy(saveName, filename, sizeof(saveName) - 1);
         saveName[sizeof(saveName) - 1] = '\0';  // Garante que o nome seja NULL-terminated
 
-        savedGame.currentState = game->currentState;   
+        savedGame.currentState = game->currentState;  
+        savedGame.volumeAmbient = game->volumeAmbient;
+        savedGame.volumeEffects = game->volumeEffects;
+        savedGame.volumeMusic = game->volumeMusic;
+        savedGame.brightness = game->brightness;
         fwrite(&savedGame, sizeof(SavedGame), 1, file);
         fclose(file);
         printf("Jogo salvo com sucesso em: %s\n", filePath);
@@ -173,8 +177,8 @@ void loadGame(const char* filename, Player* player, Game* game) {
             game->batteries[i] = savedGame.batteries[i];  // Copia os elementos de batteries
         } 
         *player = savedGame.player;  
-        elapsedSaveTime = savedGame.elapsedSaveTime;
-        
+        elapsedSaveTime = savedGame.elapsedSaveTime;  // Restaura o tempo salvo
+        timeStart = time(NULL);  // Reinicia o contador a partir do tempo atual
         game->exitDoor = savedGame.exitDoor; 
                 
         for (int i = 0; i < WIDTH; i++) {
@@ -193,6 +197,10 @@ void loadGame(const char* filename, Player* player, Game* game) {
 
         strncpy(saveName, filename, sizeof(saveName) - 1);
         saveName[sizeof(saveName) - 1] = '\0';  // Garante que o nome seja NULL-terminated
+        game->volumeAmbient = savedGame.volumeAmbient;
+        game->volumeEffects = savedGame.volumeEffects;
+        game->volumeMusic = savedGame.volumeMusic;
+        game->brightness = savedGame.brightness;
         
         // Mostrar uma mensagem de sucesso ou algum tipo de confirmação
         printf("Jogo carregado com sucesso de: %s\n", filePath);

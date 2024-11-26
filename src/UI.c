@@ -19,6 +19,7 @@ extern GLuint icons[10];
 
 extern GLuint backgroundTexture;
 extern int wasTheGameSaved;
+extern bool isGamePaused;
 
 // Vértices do triângulo
 Point triangle[3] = {
@@ -349,7 +350,6 @@ void drawLoadGameMenu(Game* game) {
     renderText(minFont, back_line, startX + iconWidth + iconSpacing + getTextWidth(minFont, enter_line) + iconSpacing + iconWidth, glutGet(GLUT_WINDOW_HEIGHT) - 100);
 }
 
-
 // Função para desenhar o menu de Ranking
 void drawRankingMenu(Game* game) {
     glClear(GL_COLOR_BUFFER_BIT);
@@ -386,49 +386,129 @@ void drawRankingMenu(Game* game) {
         float yPos = (glutGet(GLUT_WINDOW_HEIGHT) / 2) + (i * 50);
         renderText(medFont, menuOptions[i], xPos, yPos);  // Substituir o glutBitmapCharacter
     }
-
-    glutSwapBuffers();
 }
 
-// Função para desenhar o menu de Opções
+// Função para desenhar um retângulo (utilizado para a barra e o fundo do menu)
+void drawRectangle(float x, float y, float width, float height, float r, float g, float b) {
+    glColor3f(r, g, b);
+    glBegin(GL_QUADS);
+    glVertex2f(x, y);
+    glVertex2f(x + width, y);
+    glVertex2f(x + width, y + height);
+    glVertex2f(x, y + height);
+    glEnd();
+}
+
 void drawOptionsMenu(Game* game) {
     glClear(GL_COLOR_BUFFER_BIT);
     glColor3f(1.0f, 1.0f, 1.0f);
     drawBackground(backgroundTexture);
-
+    
     // Configuração para desenhar com transparência
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Desenha o quadrado preto translúcido
-    glColor4f(0.0f, 0.0f, 0.0f, 0.5f);  // Preto com 50% de transparência
+    // Desenha o fundo translúcido
+    glColor4f(0.0f, 0.0f, 0.0f, 0.5f);
     glBegin(GL_QUADS);
-        glVertex2f(0.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior esquerdo
-        glVertex2f(300.0f, glutGet(GLUT_WINDOW_HEIGHT));  // Canto inferior direito
-        glVertex2f(300.0f, 0.0f);  // Canto superior direito
-        glVertex2f(0.0f, 0.0f);  // Canto superior esquerdo
+        glVertex2f(0.0f, glutGet(GLUT_WINDOW_HEIGHT));
+        glVertex2f(glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
+        glVertex2f(glutGet(GLUT_WINDOW_WIDTH), 0.0f);
+        glVertex2f(0.0f, 0.0f);
     glEnd();
-
-    // Desabilita o blending após desenhar
     glDisable(GL_BLEND);
-    
+
     // Exemplo de opções para o Menu de Opções
-    char *menuOptions[] = {"Sound On/Off", "Back"};
-    
-    for (int i = 0; i < 2; i++) {
+    char *menuOptions[] = {"Effects Volume", "Music Volume", "Ambient Volume", "Brightness"};
+    float barWidth = 100.0f, barHeight = 20.0f;  // Posição e tamanho da barra
+
+    // Calcular a posição inicial de yPos para centralizar as opções verticalmente
+    float totalMenuHeight = 80 * 4 + 25; // Espaço total ocupado pelas opções e barras
+    float startY = (glutGet(GLUT_WINDOW_HEIGHT) - totalMenuHeight) / 2;
+
+    // Desenha as opções de volume
+    for (int i = 0; i < 4; i++) {
         if (i == game->selectedOption) {
             glColor3f(1.0f, 0.5f, 0.0f);  // Cor de destaque para a opção selecionada
         } else {
             glColor3f(1.0f, 1.0f, 1.0f);  // Cor padrão
         }
 
-        float xPos = 70.0f;
-        float yPos = (glutGet(GLUT_WINDOW_HEIGHT) / 2) + (i * 50);
+        float xPos = (glutGet(GLUT_WINDOW_WIDTH) / 2) - (barWidth * 2.0f) / 2.0f;
+        float yPos = startY + (i * 80);
         renderText(medFont, menuOptions[i], xPos, yPos);  // Substituir o glutBitmapCharacter
-    }
+        
+        // Desenha as barras de volume
+        if(i == 0) {  // Effects Volume
+            // Barra de efeitos de som
+            drawRectangle(xPos, yPos + 25, barWidth * 2.0, barHeight, 0.5f, 0.5f, 0.5f);  // Barra cinza
+            drawRectangle(xPos, yPos + 25, barWidth * game->volumeEffects * 2.0, barHeight, (i == game->selectedOption) ? 1.0f : 1.0f, (i == game->selectedOption) ? 0.5f : 1.0f, (i == game->selectedOption) ? 0.0f : 1.0f);  // Parte verde (efeitos)
+            
+            // Desenha o marcador (indicador da barra)
+            drawRectangle(xPos + barWidth * game->volumeEffects - 0.05f, yPos + 25 - 0.05f, 0.08f, barHeight + 0.08f, 1.0f, 0.0f, 0.0f);  // Marcador vermelho
+        }
 
-    glutSwapBuffers();
+        if(i == 1) {  // Music Volume
+            // Barra de música
+            drawRectangle(xPos, yPos + 25, barWidth * 2.0, barHeight, 0.5f, 0.5f, 0.5f);  // Barra cinza
+            drawRectangle(xPos, yPos + 25, barWidth * game->volumeMusic * 2.0, barHeight, (i == game->selectedOption) ? 1.0f : 1.0f, (i == game->selectedOption) ? 0.5f : 1.0f, (i == game->selectedOption) ? 0.0f : 1.0f);  // Parte azul (música)
+            
+            // Desenha o marcador (indicador da barra)
+            drawRectangle(xPos + barWidth * game->volumeMusic - 0.05f, yPos + 25 - 0.05f, 0.08f, barHeight + 0.08f, 1.0f, 0.0f, 0.0f);  // Marcador vermelho
+        }
+
+        if(i == 2) {  // Ambient Volume
+            // Barra de ambiente
+            drawRectangle(xPos, yPos + 25, barWidth * 2.0, barHeight, 0.5f, 0.5f, 0.5f);  // Barra cinza
+            drawRectangle(xPos, yPos + 25, barWidth * game->volumeAmbient * 2.0, barHeight, (i == game->selectedOption) ? 1.0f : 1.0f, (i == game->selectedOption) ? 0.5f : 1.0f, (i == game->selectedOption) ? 0.0f : 1.0f);  // Parte ciano (ambiente)
+            
+            // Desenha o marcador (indicador da barra)
+            drawRectangle(xPos + barWidth * game->volumeAmbient - 0.05f, yPos + 25 - 0.05f, 0.08f, barHeight + 0.08f, 1.0f, 0.0f, 0.0f);  // Marcador vermelho
+        }
+
+        if(i == 3) {
+            // Desenha a barra de brilho
+            drawRectangle(xPos, yPos + 25, barWidth * 2.0, barHeight, 0.5f, 0.5f, 0.5f);  // Barra cinza
+            drawRectangle(xPos, yPos + 25, barWidth * game->brightness / 2, barHeight, (i == game->selectedOption) ? 1.0f : 1.0f, (i == game->selectedOption) ? 0.5f : 1.0f, (i == game->selectedOption) ? 0.0f : 1.0f);  // Parte do brilho (branco)
+            
+            // Desenha o marcador (indicador da barra)
+            drawRectangle(xPos + barWidth * game->brightness - 0.05f, yPos + 25 - 0.05f, 0.08f, barHeight + 0.08f, 1.0f, 0.0f, 0.0f);  // Marcador vermelho
+        }
+    }
 }
+
+// Função para desenhar o menu de Ranking
+void drawGameOver(Game* game) {
+    glClear(GL_COLOR_BUFFER_BIT);
+    glColor3f(1.0f, 1.0f, 1.0f);
+    drawBackground(backgroundTexture);
+
+    // Exemplo de opções para o Menu de Ranking
+    char over_line[] = {"GAME OVER"};
+    float text_width = getTextWidth(maxFont, over_line);
+
+    glDisable(GL_LIGHTING);
+    renderText(maxFont, over_line, glutGet(GLUT_WINDOW_WIDTH)/2 - text_width/2, glutGet(GLUT_WINDOW_HEIGHT)/2);
+    glEnable(GL_LIGHTING);
+    glPopMatrix();
+}
+
+void drawOptionsPauseMenu(Game* game) {
+    glPushMatrix();
+    glLoadIdentity();
+    glDisable(GL_LIGHTING);
+    
+    glColor3f(1.0f, 1.0f, 1.0f);
+
+    char level_line[] = "PAUSE";
+    float text_width = getTextWidth(maxFont, level_line);
+
+    glDisable(GL_LIGHTING);
+    renderText(maxFont, level_line, glutGet(GLUT_WINDOW_WIDTH)/2 - text_width/2, glutGet(GLUT_WINDOW_HEIGHT)/2);
+    glEnable(GL_LIGHTING);
+    glPopMatrix();
+}
+
 
 // Função para renderizar o texto da quantidade de dots restantes
 void renderDotCount() {
@@ -441,8 +521,6 @@ void renderDotCount() {
     renderText(minFont, dots_line1, 50, 50);         // Primeira linha ("REMAINING")
     renderText(minFont, dots_line2, 50, 70);         // Segunda linha ("DOTS")
     renderText(maxFont, dots_count, 105, 85);        // Quantidade de dots
-
-
 }
 
 // Função para renderizar o tempo na UI
@@ -468,8 +546,8 @@ void renderLevel(Player* player) {
 
 // Função para renderizar o tempo na UI
 void renderGameTime() {
-    int minutes = (elapsedTime + elapsedSaveTime) / 60;  // Calcula os minutos
-    int seconds = (elapsedTime + elapsedSaveTime) % 60;  // Calcula os segundos
+    int minutes = (elapsedTime) / 60;  // Calcula os minutos
+    int seconds = (elapsedTime) % 60;  // Calcula os segundos
 
     char timeText[50];
     sprintf(timeText, "%02d:%02d", minutes, seconds);  // Converte o tempo para formato min:seg
@@ -597,6 +675,7 @@ void renderSanityUI(Player* player) {
 // Função para configurar a projeção 2D da UI
 void setup2DProjection() {
     glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
     glLoadIdentity();
     glOrtho(0, glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT), 0, -1, 1); // Definindo a projeção ortogonal para 2D
     glMatrixMode(GL_MODELVIEW);

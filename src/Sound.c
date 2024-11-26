@@ -7,9 +7,6 @@
 
 #define SOUND_POOL_SIZE 15
 
-extern float volumeEffects;
-extern float volumeMusic;
-extern float volumeAmbient;
 extern Game game;
 
 void initAudio() {
@@ -37,13 +34,13 @@ void initAudio() {
     }
 
     // Configura o volume inicial
-    ma_sound_set_volume(&soundDotCollect, volumeEffects);
-    ma_sound_set_volume(&soundAmbient, volumeAmbient);
-    ma_sound_set_volume(&soundMenu, volumeMusic); 
+    ma_sound_set_volume(&soundDotCollect, game.volumeEffects);
+    ma_sound_set_volume(&soundAmbient, game.volumeAmbient);
+    ma_sound_set_volume(&soundMenu, game.volumeMusic); 
     for (int i = 0; i < SOUND_POOL_SIZE; i++) {
-        ma_sound_set_volume(&soundMenuSelectPool[i], volumeEffects);
-        ma_sound_set_volume(&soundMenuChangePool[i], volumeEffects);
-        ma_sound_set_volume(&soundMenuBackPool[i], volumeEffects);
+        ma_sound_set_volume(&soundMenuSelectPool[i], game.volumeEffects);
+        ma_sound_set_volume(&soundMenuChangePool[i], game.volumeEffects);
+        ma_sound_set_volume(&soundMenuBackPool[i], game.volumeEffects);
     }
 }
 
@@ -81,25 +78,59 @@ void playDotCollectSound() {
 void setEffectVolume(float volume) {
     if (volume < 0.0f) volume = 0.0f;  // Impede valores negativos
     if (volume > 1.0f) volume = 1.0f;  // Limita o volume ao máximo permitido
-    volumeEffects = volume;
-    ma_sound_set_volume(&soundDotCollect, volumeEffects);
+    game.volumeEffects = volume;
+    ma_sound_set_volume(&soundDotCollect, game.volumeEffects);
 
     for (int i = 0; i < SOUND_POOL_SIZE; i++) {
         // Para cada som no pool, libere os recursos
-        ma_sound_set_volume(&soundMenuSelectPool[i], volumeEffects);
-        ma_sound_set_volume(&soundMenuChangePool[i], volumeEffects);
-        ma_sound_set_volume(&soundMenuBackPool[i], volumeEffects);
+        ma_sound_set_volume(&soundMenuSelectPool[i], game.volumeEffects);
+        ma_sound_set_volume(&soundMenuChangePool[i], game.volumeEffects);
+        ma_sound_set_volume(&soundMenuBackPool[i], game.volumeEffects);
     }
 }
 
+void setMusicVolume(float volume) {
+    if (volume < 0.0f) volume = 0.0f;  // Impede valores negativos
+    if (volume > 1.0f) volume = 1.0f;  // Limita o volume ao máximo permitido
+    game.volumeMusic = volume;
+    ma_sound_set_volume(&soundMenu, game.volumeMusic);
+}
+
+void setAmbientVolume(float volume) {
+    if (volume < 0.0f) volume = 0.0f;  // Impede valores negativos
+    if (volume > 1.0f) volume = 1.0f;  // Limita o volume ao máximo permitido
+    game.volumeAmbient = volume;
+    ma_sound_set_volume(&soundAmbient, game.volumeAmbient);
+}
+
 void increaseEffectVolume() {
-    setEffectVolume(volumeEffects + 0.1f); // Aumenta o volume em 0.1
-    printf("Volume dos efeitos aumentado para %.1f\n", volumeEffects);
+    setEffectVolume(game.volumeEffects + 0.1f); // Aumenta o volume em 0.1
+    printf("Volume dos efeitos aumentado para %.1f\n", game.volumeEffects);
 }
 
 void decreaseEffectVolume() {
-    setEffectVolume(volumeEffects - 0.1f); // Diminui o volume em 0.1
-    printf("Volume dos efeitos reduzido para %.1f\n", volumeEffects);
+    setEffectVolume(game.volumeEffects - 0.1f); // Diminui o volume em 0.1
+    printf("Volume dos efeitos reduzido para %.1f\n", game.volumeEffects);
+}
+
+void increaseMusicVolume() {
+    setMusicVolume(game.volumeMusic + 0.1f); // Aumenta o volume em 0.1
+    printf("Volume da música aumentado para %.1f\n", game.volumeMusic);
+}
+
+void decreaseMusicVolume() {
+    setMusicVolume(game.volumeMusic - 0.1f); // Diminui o volume em 0.1
+    printf("Volume da música reduzido para %.1f\n", game.volumeMusic);
+}
+
+void increaseAmbientVolume() {
+    setAmbientVolume(game.volumeAmbient + 0.1f); // Aumenta o volume em 0.1
+    printf("Volume ambiente aumentado para %.1f\n", game.volumeAmbient);
+}
+
+void decreaseAmbientVolume() {
+    setAmbientVolume(game.volumeAmbient - 0.1f); // Diminui o volume em 0.1
+    printf("Volume ambiente reduzido para %.1f\n", game.volumeAmbient);
 }
 
 void cleanupAudio() {
