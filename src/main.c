@@ -20,23 +20,6 @@
 #include "SaveLoad.h"
 #include "textureloader.h"
 
-#define WIDTH 20                        // Largura do labirinto
-#define HEIGHT 20                       // Altura do labirinto
-#define DOT_COUNT 30                    // Quantidade de dots a serem coletados
-#define BATTERY_COUNT 5                 // Quantidade de baterias a serem spawnadas
-#define MAX_BATTERY_PERCENTAGE 100.0f   // Capacidade máxima da bateria (100%)
-#define MAX_BATTERY 70.0f               // Capacidade máxima da lanterna
-#define MAX_HEALTH 100.0f               // Capacidade máxima da vida
-#define MAX_SANITY 100.0f               // Capacidade máxima da sanidade
-#define BATTERY_DECREASE_RATE 0.01f     // Taxa de diminuição da bateria por atualização de frame
-#define HEALTH_DECREASE_RATE 0.02f      // Taxa de diminuição da bateria por atualização de frame
-#define SANITY_DECREASE_RATE 0.02f      // Taxa de diminuição da bateria por atualização de frame
-#define NUM_MENU_OPTIONS 5              // Opções do Menu
-#define M_PI 3.14159265358979323846
-#define STB_IMAGE_IMPLEMENTATION
-#define SOUND_POOL_SIZE 15
-#define MAX_SAVES 4                     // Limite máximo de saves permitido
-
 int maze_widht = WIDTH, maze_height = HEIGHT;
 int window_width = 800, window_height = 600;
 
@@ -45,7 +28,7 @@ int total_batteries = 5;
 
 float lightDirX = 0.0f;
 float lightDirZ = 1.0f;                 // Inicialmente apontando para "frente"
-float maxDistance = 5.0f;               // Distância máxima para a lanterna
+float maxDistance = 3.0f;               // Distância máxima para a lanterna
 
 float batteryDecrease = BATTERY_DECREASE_RATE;
 
@@ -62,6 +45,7 @@ int med_font_height = 20;
 int min_font_height = 14;
 
 Player player;
+Ghost ghosts[NUM_MAX_GHOST];
 
 ma_engine engine;
 ma_sound soundAmbient;
@@ -76,6 +60,7 @@ ma_sound soundMenuBackPool[SOUND_POOL_SIZE];
 int isMainMenuMusicOn = 0;
 int wasTheGameSaved = 0;
 GLuint backgroundTexture, batteryTexture;
+bool screenHit = false;
 
 bool isGamePaused = false;
 
@@ -287,6 +272,12 @@ void display() {
         } 
 
         updateLighting();                   // Atualiza a iluminação de acordo com o jogador
+
+        // Verifica se o fantasma foi atingido pela lanterna e respawna em outro lugar se necessário
+        for(int i = 0; i < NUM_MAX_GHOST; i++) {
+            checkFlashlightHit(&game, &player, &ghosts[i]);
+        }
+        
         renderScene(&game, &player, batteryModel);        // Renderiza o jogador e os dots
 
         // Configura a projeção 2D para renderizar a UI
@@ -348,7 +339,7 @@ void keyboardDown(unsigned char key, int x, int y) {
                 }
                 lightDirX = +1.0f; 
                 lightDirZ = 0.0f;
-                player.rotation = 180.0f;
+                player.rotation = 0.0f;
             }
             else if ((key == 'd' || key == 'D') && !player.moving) {  // Move para a direita (no eixo X)
                 posX = player.posX - 1.0f;
@@ -359,7 +350,7 @@ void keyboardDown(unsigned char key, int x, int y) {
                 }
                 lightDirX = -1.0f; 
                 lightDirZ = 0.0f; 
-                player.rotation = 0.0f;
+                player.rotation = 180.0f;
             }
             else if (key == 'f' || key == 'F') {
                 player.flashlight = player.flashlight == 1 ? 0 : 1;
@@ -395,8 +386,7 @@ void keyboardDown(unsigned char key, int x, int y) {
                 adjustBrightness(&game, 0.9f);  // Aumenta o brilho em 10%();
             }
             else if (key == 't' || key == 'T') {
-                //saveGame(saveName, &player, &game, elapsedTime);
-                player.health = 0.0f;
+                saveGame(saveName, &player, &game, elapsedTime);
             }
         }
         if(key == 27) { 
@@ -628,17 +618,17 @@ void init() {
     game.brightness = 1.0f;
 
     // Carregar a imagem de fundo
-    backgroundTexture = loadTexture("C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/Images/Background.png");
-    batteryTexture = loadTexture("C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/Objects/battery/RGB_74f40f51e22244c68872b66bf27b6403_cj_dianchi01.png");
+    backgroundTexture = loadTexture("./assets/Images/Background.png");
+    batteryTexture = loadTexture("./assets/Objects/battery/RGB_74f40f51e22244c68872b66bf27b6403_cj_dianchi01.png");
 
-    initMaxFont("C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/fonts/Rexlia.ttf");  
-    initMedFont("C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/fonts/Rexlia.ttf");  
-    initMinFont("C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/fonts/Rexlia.ttf");
+    initMaxFont("./assets/fonts/Rexlia.ttf");  
+    initMedFont("./assets/fonts/Rexlia.ttf");  
+    initMinFont("./assets/fonts/Rexlia.ttf");
     initAudio();
     loadIcons();
 
     initObjectList(&objectList);
-    loadObjectFile(&objectList, "C:/Users/Maluzinha/OneDrive/Documentos/PacMan3d/assets/Objects/battery/battery.obj");
+    loadObjectFile(&objectList, "./assets/Objects/battery/battery.obj");
     batteryModel = getObjectList(&objectList, 0);
     
     // Carrega os arquivos de save nos slots
@@ -650,6 +640,8 @@ void init() {
 // Função de callback do GLUT para o loop do jogo
 void update(int value) {
     if(game.currentState == PLAYING && !isGamePaused && game.currentState != FINISHED) {
+        spawnGhosts(&game, &player);
+        moveGhosts(&player);
         updatePlayerStatus(&game, &player);
 
         if(goalDots == 0) {

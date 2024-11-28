@@ -21,6 +21,7 @@
         "dirent.h": "c",
         "gl.h": "c",
         "stb_image.h": "c",
-        "glew.h": "c"
+        "glew.h": "c",
+        "format": "c"
     }
 }

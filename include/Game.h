@@ -17,15 +17,9 @@
 #define BATTERY_DECREASE_RATE 0.01f 
 #define HEALTH_DECREASE_RATE 0.02f
 #define SANITY_DECREASE_RATE 0.02f
+#define SAFE_DISTANCE 10.0f             // Distância mínima entre o jogador e o fantasma
 #define MAX_RANKING_SIZE 10
-
-extern int maze_widht, maze_height;
-extern int goalDots;            
-extern int total_batteries;
-extern float lightDirX;
-extern float lightDirZ;         
-extern float maxDistance;
-extern int wasTheGameSaved;
+#define NUM_MAX_GHOST 4
 
 // Estrutura para o jogador
 typedef struct {
@@ -44,6 +38,13 @@ typedef struct {
     int level;
     float rotation;
 } Player;
+
+typedef struct {
+    float x, y, z;  // Posição do fantasma
+    float speed;    // Velocidade do fantasma
+    bool moveHorizontal; // true para movimento horizontal, false para vertical
+    bool alive;     // Se o fantasma está no mapa
+} Ghost;
 
 typedef struct {
     int x, y;
@@ -128,5 +129,9 @@ void displayRanking(Game* game);
 void saveRankingToFile(Game* game, const char* fileName);
 void loadRankingFromFile(Game* game, const char* fileName);
 int calculateScore(int level, int elapsedTime);
+void spawnGhosts(Game* game, Player* player);
+void moveGhosts(Player* player);
+void drawGhost(Ghost* ghost);
+void checkFlashlightHit(Game* game, Player *player, Ghost *ghost);
 
 #endif

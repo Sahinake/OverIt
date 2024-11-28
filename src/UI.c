@@ -371,9 +371,9 @@ void drawRankingMenu(Game* game) {
     glDisable(GL_BLEND);
 
     glColor3f(1.0f, 1.0f, 1.0f);
-    float menuWidth = 0.7f * glutGet(GLUT_WINDOW_WIDTH);  // 60% da largura da janela
-    float menuHeight = 0.5f * glutGet(GLUT_WINDOW_HEIGHT);  // 50% da altura da janela
-    float xStart = (glutGet(GLUT_WINDOW_WIDTH))/2 - menuWidth / 2.0f;  // Centraliza na horizontal
+    float menuWidth = 0.7f * glutGet(GLUT_WINDOW_WIDTH);  // 70% da largura da janela
+    float menuHeight = 0.8f * glutGet(GLUT_WINDOW_HEIGHT);  // 90% da altura da janela
+    float xStart = (glutGet(GLUT_WINDOW_WIDTH))/2 - menuWidth/2;  // Centraliza na horizontal
     float yStart = 50.0f;
     float slotHeight = 30.0f;
     int yOffset = 0;
@@ -381,7 +381,7 @@ void drawRankingMenu(Game* game) {
     // Exibe os 10 melhores jogos
     for (int i = 0; i < game->rankingCount && i < 10; i++) {
         char rankingText[300];
-        float yPosition = 50.0f + i * (slotHeight + 0.02f * glutGet(GLUT_WINDOW_HEIGHT));
+        float yPosition = yOffset + i * slotHeight;
         
         // Formata a data e hora
         char dateStr[50];
@@ -394,7 +394,8 @@ void drawRankingMenu(Game* game) {
                 game->rankingList[i].elapsedTime, dateStr);
         
         // Desenha o ranking na tela (ajustando a posição X e Y para centralizar o texto)
-        renderText(minFont, rankingText, xStart, yPosition + slotHeight / 2.0f);  // Ajuste X e Y
+        renderText(minFont, rankingText, xStart, yPosition + slotHeight + yOffset/ 2.0f);  // Ajuste X e Y
+        yOffset += 10;
     }
 
     // Mensagens de instrução

@@ -43,3 +43,4 @@ void updateGameTime(int value) {
     glutPostRedisplay();  // Re-renderiza a tela para atualizar a UI
     glutTimerFunc(1000, updateGameTime, 0);  // Agenda próxima atualização em 1 segundo
 }
+

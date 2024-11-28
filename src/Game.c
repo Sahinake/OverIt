@@ -20,7 +20,15 @@
 #define DOT_COUNT 30
 #define MAX_RANKING_SIZE 10
 
+extern int maze_widht, maze_height;
+extern int goalDots;            
+extern int total_batteries;
+extern float lightDirX;
+extern float lightDirZ;         
+extern float maxDistance;
+extern int wasTheGameSaved;
 extern char saveName[256];
+extern Ghost ghosts[NUM_MAX_GHOST];
 extern GLuint batteryTexture;
 bool useTexture = true;
 
@@ -199,7 +207,8 @@ void setMaterial(GLfloat ambient[4], GLfloat diffuse[4], GLfloat specular[4], GL
 
 // Função para inicializar o jogador
 void initializePlayer(Player* player) {
-    player->posX = 1.0f;            
+    player->posX = 1.0f;   
+    player->posY = 0.0f;         
     player->posZ = 0.0f;            
     // player.speed = 1.0f;          
     player->health = MAX_HEALTH;
@@ -517,6 +526,11 @@ int updateGame(Game* game, Player* player) {
 void renderScene(Game* game, Player* player, Object* batteryModel) {
     renderMaze(game);
     renderPlayerAndObjects(game, player, batteryModel);
+
+    // Desenha os fantasmas
+    for (int i = 0; i < NUM_MAX_GHOST; i++) {
+        drawGhost(&ghosts[i]);
+    }
 }
 
 void adjustBrightness(Game* game, float factor) {
@@ -648,4 +662,138 @@ void loadRankingFromFile(Game* game, const char* fileName) {
     }
     
     fclose(file);
+}
+
+// Spawna fantasmas apenas em áreas vazias do mapa
+void spawnGhosts(Game* game, Player* player) {
+    // Fantasmas só aparecem quando a sanidade está abaixo de 60%
+    if (player->sanity >= 80.0f) return;
+
+    float probablyGhost = (1.0f - (player->sanity / 100.0f)) * 0.005f;
+    for (int i = 0; i < NUM_MAX_GHOST; i++) {
+        if (!ghosts[i].alive && ((float)rand() / RAND_MAX) < probablyGhost) {
+            int x, z;
+            do {
+                x = rand() % WIDTH;
+                z = rand() % HEIGHT;
+            } while (game->maze[x][z] == 1); // Garante que o fantasma não spawnará em uma parede
+            ghosts[i].alive = true;
+            ghosts[i].x = x + 0.5f; // Centraliza no bloco
+            ghosts[i].z = z + 0.5f;
+            ghosts[i].y = 0.0f; // Fantasma sempre desenhado acima
+            ghosts[i].speed = 0.01f;
+            ghosts[i].moveHorizontal = true; // Começa movendo horizontalmente
+        }
+    }
+}
+
+// Função para calcular a distância entre o jogador e o fantasma considerando apenas as coordenadas x e z
+float calculateDistance2D(float playerX, float playerZ, float ghostX, float ghostZ) {
+    float dx = playerX - ghostX;
+    float dz = playerZ - ghostZ;
+    return sqrt(dx * dx + dz * dz);  // Distância 2D, ignorando a componente y
+}
+
+// Atualiza a posição dos fantasmas
+void moveGhosts(Player* player) {
+    for (int i = 0; i < NUM_MAX_GHOST; i++) {
+        if (ghosts[i].alive) {
+            // Calcula a diferença nas coordenadas
+            float dx = player->posX - ghosts[i].x;
+            float dz = player->posZ - ghosts[i].z;
+
+            // Alterna entre movimento horizontal e vertical
+            if (ghosts[i].moveHorizontal) {
+                // Movimento horizontal
+                ghosts[i].x += (dx > 0 ? ghosts[i].speed : -ghosts[i].speed);
+
+                // Alterna para vertical na próxima iteração
+                ghosts[i].moveHorizontal = false;
+            } else {
+                // Movimento vertical
+                ghosts[i].z += (dz > 0 ? ghosts[i].speed : -ghosts[i].speed);
+
+                // Alterna para horizontal na próxima iteração
+                ghosts[i].moveHorizontal = true;
+            }
+
+            // Detecta colisão com o jogador
+            float distance = calculateDistance2D(player->posX, player->posZ, ghosts[i].x, ghosts[i].z);
+            if (distance < 0.5f) {
+                player->health -= 5;
+                ghosts[i].alive = false;
+            }
+        }
+    }
+}
+
+// Desenha o fantasma com transparência
+void drawGhost(Ghost* ghost) {
+    if (!ghost->alive) return;
+
+    // Desativar o teste de profundidade
+    glDisable(GL_DEPTH_TEST);
+
+    // Configura material e transparência
+    GLfloat ghost_ambient[] = {1.0, 1.0, 1.0, 0.5}; // Branco com transparência
+    GLfloat ghost_difuse[] = {1.0, 1.0, 1.0, 0.5};   // Branco com transparência
+    glMaterialfv(GL_FRONT, GL_AMBIENT, ghost_ambient);
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, ghost_difuse);
+
+    // Habilita mistura para transparência
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glPushMatrix();
+    glTranslatef(ghost->x, ghost->y, ghost->z); // Move para a posição do fantasma
+
+    // Desenha uma esfera representando o fantasma
+    glutSolidSphere(0.3, 20, 20);
+
+    glPopMatrix();
+
+    // Restaura configurações originais
+    glDisable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
+}
+
+// Função para verificar se o fantasma está na luz da lanterna e "matar" se estiver
+void checkFlashlightHit(Game* game, Player* player, Ghost* ghost) {
+    if (player->flashlight == 0 || player->flashlightCharge == 0) {
+        // Se a lanterna está desligada ou sem carga, não fazemos nada
+        return;
+    }
+
+    float dx = ghost->x - player->posX;
+    float dz = ghost->z - player->posZ;
+    float distance = sqrt(dx * dx + dz * dz);
+
+    // Verifica se o fantasma está dentro do alcance da lanterna
+    if (distance > maxDistance) {
+        return;  // Se estiver fora do alcance, não é visível
+    }
+
+    // Vetor da posição do jogador até o fantasma
+    float toGhostX = ghost->x - player->posX;
+    float toGhostZ = ghost->z - player->posZ;
+
+    float angle = atan2(dz, dx) * 180 / M_PI;  // Converte para graus
+    float lightAngle = atan2(lightDirZ, lightDirX) * 180 / M_PI;
+
+     // Calcula a diferença angular
+    float angleDiff = fabs(angle - lightAngle);
+
+    // Ajusta a diferença angular para que esteja entre 0 e 180 graus
+    if (angleDiff > 180.0f) {
+        angleDiff = 360.0f - angleDiff;
+    }
+
+
+    if (angleDiff <= player->flashlightCharge) {
+        // Fantasma está na frente do jogador e dentro do cone de luz. "Matar" fantasma
+        ghost->alive = false;
+
+        // Opcional: Adicionar efeitos visuais ou sons para indicar que o fantasma foi eliminado
+        // playSoundEffect("ghost_die.wav");
+    }
 }
